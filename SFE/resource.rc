@@ -1,0 +1,38 @@
+﻿#include "resource.h"
+
+//this will set your .exe icon
+IDR_MAINFRAME ICON MOVEABLE PURE LOADONCALL DISCARDABLE "./resources/mainframe.ico"
+
+IDB_TILESET   BITMAP                  "./resources/list.bmp"
+
+IDR_MAINMENU MENU
+BEGIN
+	POPUP "&File"
+	BEGIN
+		MENUITEM "&New\tCtrl+N",			ID_FILE_NEW
+		MENUITEM "&Open...\tCtrl+O",		ID_FILE_OPEN
+		MENUITEM "&Save\tCtrl+S",			ID_FILE_SAVE, GRAYED
+		MENUITEM "&Save As...",				ID_FILE_SAVE_AS, GRAYED
+		MENUITEM SEPARATOR
+		MENUITEM "&Close\tCtrl+F4",			ID_FILE_CLOSE, GRAYED
+		MENUITEM "&Close All",				ID_FILE_CLOSEALL, GRAYED
+		MENUITEM SEPARATOR
+		MENUITEM "E&xit",					ID_FILE_EXIT
+	END
+	POPUP "&View"
+	BEGIN
+		MENUITEM "&Split None",				ID_VIEW_SPLIT_NONE
+		MENUITEM "&Split	—",		ID_VIEW_SPLIT_VERT
+		MENUITEM "&Split	 |",		ID_VIEW_SPLIT_HORZ
+	END
+	POPUP "&Window" GRAYED
+	BEGIN
+		MENUITEM "&Tile\tShift+F5",			ID_WINDOW_TILE_VERT
+		MENUITEM "&Cascade\tShift+F4",		ID_WINDOW_CASCADE
+		MENUITEM "Arrange &Icons",			ID_WINDOW_ARRANGE
+	END
+	POPUP "&Help"
+	BEGIN
+		MENUITEM "&About",					ID_APP_ABOUT
+	END
+END
