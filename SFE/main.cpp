@@ -19,7 +19,7 @@ int APIENTRY wWinMain(
     InitCommonControlsEx(&icc);
 
     // Set DPI awareness
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    //SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     /* Register the window class, and if it fails quit the program */
     CMainFrame mf;

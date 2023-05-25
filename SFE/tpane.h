@@ -5,6 +5,8 @@
 #include <d2d1.h>
 #include <dwrite.h>
 #include <uxtheme.h>
+#include "btnpane.h"
+#include "breadcrumb.h"
 
 class CTPane
 {
@@ -23,25 +25,18 @@ public:
 	virtual void     OnSize(UINT nType, UINT nWidth, UINT nHeight);
 
 	HWND m_hWnd;
-	HTHEME m_hTheme;
+	HWND m_hWndTT;
 
 protected:
-	virtual HRESULT OnPaint();
-	virtual HRESULT OnPaint2D(ID2D1HwndRenderTarget *pRT, HDC hDC);
-	virtual HRESULT CreateDeviceIndependentResources();
-	virtual HRESULT CreateDeviceDependentResources();
-	virtual void    DiscardDeviceDependentResources();
+	virtual HRESULT OnPaint(HDC hDC, RECT rect);
 
 private:
 	float m_fScale;
 	INT  m_nHeight;
-	ID2D1SolidColorBrush* m_pBr0;
-	ID2D1SolidColorBrush* m_pBr1;
 
-protected:
-	ID2D1Factory* m_pDirect2dFactory;
-	ID2D1HwndRenderTarget* m_pRenderTarget;
-
+private:
+	CBTNPane    m_wndBtnPane;
+	CBreadCrumb m_wndBC;
 };
 
 #endif // TPANE_H_INCLUDED

@@ -4,7 +4,7 @@
 #include "resource.h"
 #include "mainframe.h"
 #include <atltypes.h>
-#include <atlbase.h>
+//#include <atlbase.h>
 #include <atlstr.h>
 
 /*  Make the class name into a global variable  */
@@ -392,12 +392,17 @@ void CMainFrame::OnSize(UINT nType, UINT nWidth, UINT nHeight)
     CRect rect;
     GetClientRect(m_hWnd, &rect);
 
-    RECT rToolBar;
-    GetWindowRect(hWndToolbar, &rToolBar);
-    int nH = rToolBar.bottom - rToolBar.top;
+   // RECT rToolBar;
+    //GetWindowRect(hWndToolbar, &rToolBar);
+    int nH = 0;// rToolBar.bottom - rToolBar.top;
     MoveWindow(hWndToolbar, 0, 0, rect.right - rect.left, nHeight, TRUE);
 
     MoveWindow(m_wndMainView.m_hWnd, rect.left, rect.top + nH, rect.right - rect.left, rect.bottom - rect.top, TRUE);
+
+    wchar_t text_buffer[1024] = { 0 };
+    swprintf(text_buffer, _countof(text_buffer), L"Toolbar H: %d\n", nH);
+    OutputDebugString(text_buffer);
+
 
     InvalidateRect(m_hWnd, NULL, TRUE);
 }
@@ -554,8 +559,12 @@ BOOL CMainFrame::ReadRegValue(LPCTSTR pszValueName, void* pData, ULONG nBytes, H
 
     if (!hKey)
     {
-        if (reg.Open(HKEY_CURRENT_USER, sk) != ERROR_SUCCESS)
+        if (reg.Open(HKEY_CURRENT_USER, TEXT("SOFTWARE")) != ERROR_SUCCESS)
             return FALSE;
+        if (reg.Open(HKEY_CURRENT_USER, TEXT("SFE")) != ERROR_SUCCESS)
+        {
+            reg.Create(reg.m_hKey, TEXT("SFE"));
+        }
     }
     else
     {

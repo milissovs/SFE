@@ -1,4 +1,4 @@
-#include <windows.h>
+﻿#include <windows.h>
 #include <windowsx.h>
 #include "tpane.h"
 #include "globals.h"
@@ -53,7 +53,11 @@ LRESULT  CTPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
             if (!bRes)
                 return 0;
 
-            OnPaint();
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hWnd, &ps);
+            OnPaint(hdc, ps.rcPaint);
+
+            EndPaint(hWnd, &ps);
 
             return 0;
         }
@@ -67,10 +71,64 @@ LRESULT  CTPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 
         case WM_LBUTTONDOWN:
         {
-            UINT nX = LOWORD(lParam);
-            UINT nY = HIWORD(lParam);
+            POINT pt = {LOWORD(lParam), HIWORD(lParam)};
             HWND hParent = ::GetParent(m_hWnd);
             ::PostMessage(hParent, WM_LBUTTONDOWN, (WPARAM)0, (LPARAM)0);
+            //OnLButtonDown(pt);
+            break;
+        }
+
+        //case WM_MOUSEMOVE:
+        //{
+        //    if (!m_bMouseTracking)
+        //    {
+        //        TRACKMOUSEEVENT tme;
+        //        tme.cbSize = sizeof(TRACKMOUSEEVENT);
+        //        tme.dwFlags = TME_LEAVE;
+        //        tme.hwndTrack = hWnd;
+        //        TrackMouseEvent(&tme);
+        //        m_bMouseTracking = TRUE;
+        //    }
+
+        //    POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+        //    OnMouseMove((UINT)wParam, pt);
+        //    break;
+        //}
+
+        case WM_MOUSELEAVE:
+        {
+            //SendMessage(m_hWndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&toolTipInfo);
+            //m_bMouseTracking = FALSE;
+            //for (int i = 0; i < 3; i++)
+            //{
+            //    m_btns[i].SetStateHovered(FALSE);
+            //    m_btns[i].SetStateHoveredDrop(FALSE);
+            //}
+            //InvalidateRect(m_hWnd, NULL, NULL);
+            break;
+        }
+
+        case WM_NOTIFY:
+        {
+            LPNMHDR pnmh = (LPNMHDR)lParam;
+            switch (pnmh->code)
+            {
+                case NM_CUSTOMDRAW:
+                {
+                    const auto& lpNMCustomDraw = (LPNMTTCUSTOMDRAW)lParam;
+                    //if (pnmh->hwndFrom == m_hWndTT)
+                    //{
+                    //    //NMTTCUSTOMDRAW* pnmtt = (NMTTCUSTOMDRAW*)pnmh;
+                    //    return  OnToolTipCustomDraw(lpNMCustomDraw);
+                    //}
+                    break;
+                }
+                case TTN_GETDISPINFO:
+                {
+                    LPNMTTDISPINFO pInfo = (LPNMTTDISPINFO)lParam;
+                    break;
+                }
+            }
             break;
         }
 
@@ -82,32 +140,48 @@ LRESULT  CTPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 
 CTPane::CTPane()
     : m_hWnd(NULL)
-    , m_hTheme(NULL)
+    , m_hWndTT(NULL)
     , m_fScale(1.0f)
-    , m_nHeight(28 * 2)
-    , m_pDirect2dFactory(NULL)
-    , m_pRenderTarget(NULL)
-    , m_pBr0(NULL)
-    , m_pBr1(NULL)
+    , m_nHeight(28)
+    , m_wndBtnPane()
+    //, m_pDirect2dFactory(NULL)
+    //, m_pRenderTarget(NULL)
+    //, m_pDWriteFactory(NULL)
+    //, m_spInlineObjec_TFC(NULL)
+    //, m_spInlineObjec_TFL(NULL)
+    //, m_pTFC(NULL)
+    //, m_pTFL(NULL)
+    //, m_pBr0(NULL)
+    //, m_pBr1(NULL)
+    //, m_bMouseTracking(FALSE)
+    //, toolTipInfo()
+    //, m_nHoveredButton(-1)
+    //, m_pBrBorder0(NULL)
+    //, m_pBrBorder1(NULL)
+    //, m_pBrText0(NULL)
+    //, m_pBrText1(NULL)
+    //, m_rcBC()
+    //, m_bEditMode(FALSE)
 {
 
 }
 
 CTPane::~CTPane()
 {
-    SafeRelease(&m_pDirect2dFactory);
-    SafeRelease(&m_pRenderTarget);
-    SafeRelease(&m_pBr1);
-    SafeRelease(&m_pBr1);
-    CloseThemeData(m_hTheme);
+    //SafeRelease(&m_pDirect2dFactory);
+    //SafeRelease(&m_pRenderTarget);
+    //SafeRelease(&m_pBr0);
+    //SafeRelease(&m_pBr1);
+    //SafeRelease(&m_pBrBorder0);
+    //SafeRelease(&m_pBrBorder1);
+    //SafeRelease(&m_pBrText0);
+    //SafeRelease(&m_pBrText1);
+    //SafeRelease(&m_pTFC);
+    //SafeRelease(&m_pTFL);
 }
 
 HWND CTPane::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
 {
-    HRESULT hr = CreateDeviceIndependentResources();
-    if (!SUCCEEDED(hr))
-        return NULL;
-
     WNDCLASSEX wincl;
 
     /* The Window structure */
@@ -141,7 +215,7 @@ HWND CTPane::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
         WS_EX_COMPOSITED | WS_EX_TRANSPARENT,
         m_szTPaneClassName,
         NULL,
-        WS_VISIBLE | WS_CHILD,// | WS_BORDER,
+        WS_VISIBLE | WS_CHILD,// | WS_BORDER, | WS_CLIPCHILDREN
         0,
         0,
         200,
@@ -151,19 +225,19 @@ HWND CTPane::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
         hInstance,
         (LPVOID)this);
 
-    BOOL bThemed = IsAppThemed();
-    m_hTheme = OpenThemeData(m_hWnd, L"Button");
-
     HDC hDC = ::GetDC(m_hWnd);
     INT xdpi = ::GetDeviceCaps(hDC, LOGPIXELSX);
     ::ReleaseDC(m_hWnd, hDC);
-    float m_fScale = xdpi / 96.0f;
+    m_fScale = xdpi / 96.0f;
 
     return m_hWnd;
 }
 
 int CTPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
 {
+    m_wndBtnPane.Create(hWnd, lpCS->hInstance, &m_wndBtnPane);
+    m_wndBC.Create(hWnd, lpCS->hInstance, &m_wndBC);
+
     return 1;
 }
 
@@ -177,142 +251,91 @@ void CTPane::OnSize(UINT nType, UINT nWidth, UINT nHeight)
     if (nType == SIZE_MINIMIZED)
         return;
 
-    if (m_pRenderTarget)
-        m_pRenderTarget->Resize(D2D1::SizeU(nWidth, nHeight));
+    RECT rc = { 1, 1, (int)(m_wndBtnPane.GetWidth() * m_fScale), (int)(28 * m_fScale) };  //
+    MoveWindow(m_wndBtnPane.m_hWnd, rc.left, rc.top, rc.right, rc.bottom - 2, TRUE);
+
+    MoveWindow(m_wndBC.m_hWnd, rc.right + 1, rc.top - 1, nWidth - rc.right - 1, nHeight - 1, TRUE);
 }
 
-HRESULT CTPane::CreateDeviceIndependentResources()
-{
-    return D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pDirect2dFactory);
-}
-
-HRESULT CTPane::CreateDeviceDependentResources()
-{
-    HRESULT hr = S_OK;
-
-    if (m_hWnd == NULL)
-        return S_OK;
-
-    if (!m_pRenderTarget)
-    {
-        RECT rc;
-        GetClientRect(m_hWnd, &rc);
-
-        D2D1_SIZE_U size = D2D1::SizeU(
-            rc.right - rc.left,
-            rc.bottom - rc.top);
-
-        // Create a Direct2D render target.
-        hr = m_pDirect2dFactory->CreateHwndRenderTarget(
-            D2D1::RenderTargetProperties(),
-            D2D1::HwndRenderTargetProperties(m_hWnd, size),
-            &m_pRenderTarget);
-
-        if (SUCCEEDED(hr))
-            hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xA0A0A0), &m_pBr0);
-        if (SUCCEEDED(hr))
-            hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x696969), &m_pBr1);
-
-        float dpiX = { 0 };
-        float dpiY = { 0 };
-        if (m_pRenderTarget)
-            m_pRenderTarget->GetDpi(&dpiX, &dpiY);
-        m_fScale = dpiX / 96.0f;
-    }
-
-    return hr;
-}
-
-void CTPane::DiscardDeviceDependentResources()
-{
-    SafeRelease(&m_pRenderTarget);
-    SafeRelease(&m_pBr0);
-    SafeRelease(&m_pBr1);
-}
-
-HRESULT CTPane::OnPaint()
+HRESULT CTPane::OnPaint(HDC hdc, RECT rect)
 {
     if (m_hWnd == NULL)
         return S_OK;
 
     RECT rc;
-    GetWindowRect(m_hWnd, &rc);
+    GetClientRect(m_hWnd, &rc);
 
-    HRESULT hr = CreateDeviceDependentResources();
+    HRESULT hr = S_OK;
 
-    if (SUCCEEDED(hr))
-    {
-        PAINTSTRUCT ps;
-        HDC hDC = BeginPaint(m_hWnd, &ps);
+    HPEN pen0 = CreatePen(PS_INSIDEFRAME, 1, RGB(227, 227, 227));
+    HPEN pen1 = CreatePen(PS_INSIDEFRAME, 1, RGB(160, 160, 160));
+    HPEN pen2 = CreatePen(PS_INSIDEFRAME, 1, RGB(255, 255, 255));
+    HPEN pen3 = CreatePen(PS_INSIDEFRAME, 1, RGB(105, 105, 105));
 
-        m_pRenderTarget->BeginDraw();
-        m_pRenderTarget->Clear(D2D1::ColorF(GetSysColor(COLOR_WINDOW)));
+    //HBRUSH hbr = CreateSolidBrush(0xFF0000);
 
-        //========================================================================
-        // Begin painting
-        //========================================================================
-        hr = OnPaint2D(m_pRenderTarget, hDC);
-        //========================================================================
-        // End painting
-        //========================================================================
+    HGDIOBJ old = SelectObject(hdc, pen2);
 
-        hr = m_pRenderTarget->EndDraw();
+    //FillRect(hdc, &rect, hbr);
+    MoveToEx(hdc, rect.left, rect.top, NULL);
+    LineTo(hdc, rect.right, rect.top);
+    MoveToEx(hdc, rect.left, rect.top, NULL);
+    LineTo(hdc, rect.left, rect.bottom - 1);
 
-        RECT rc;
-        rc.left = 3;
-        rc.top = 3;
-        rc.right = rc.left + 36;
-        rc.bottom = rc.top + 36;
-        HRESULT hr = DrawThemeBackground(m_hTheme, hDC, TP_BUTTON, TS_PRESSED, &rc, 0);
-        rc.top = rc.bottom + 3;
-        rc.bottom = rc.top + 36;
-        hr = DrawThemeBackground(m_hTheme, hDC, BP_PUSHBUTTON, PBS_HOT, &rc, 0);
+    SelectObject(hdc, pen1);
+    LineTo(hdc, rect.right - 1, rect.bottom - 1);
+    LineTo(hdc, rect.right - 1, rect.top);
 
-        EndPaint(m_hWnd, &ps);
+    //
+    int nOffset = (int)(m_wndBtnPane.GetWidth() * m_fScale);
+    MoveToEx(hdc, nOffset + 1, rect.bottom - 1, NULL);
+    LineTo(hdc, nOffset + 1, rect.top);
+    LineTo(hdc, rect.right - 1, rect.top);
 
-        if (hr == D2DERR_RECREATE_TARGET)
-        {
-            hr = S_OK;
-            DiscardDeviceDependentResources();
-        }
-    }
-    return hr;
-}
+    SelectObject(hdc, pen3);
+    MoveToEx(hdc, nOffset + 2, rect.bottom - 2, NULL);
+    LineTo(hdc, nOffset + 2, rect.top + 1);
+    LineTo(hdc, rect.right - 2, rect.top + 1);
 
-HRESULT CTPane::OnPaint2D(ID2D1HwndRenderTarget* pRT, HDC hDC)
-{
-    D2D1_SIZE_F size = pRT->GetSize();
+    SelectObject(hdc, pen2);
+    MoveToEx(hdc, nOffset + 1, rect.bottom - 2, NULL);
+    LineTo(hdc, rect.right - 1, rect.bottom - 2);
+    LineTo(hdc, rect.right - 1, rect.top);
 
-    D2D1_POINT_2F p0{ 0, size.height - 0.5f };
-    D2D1_POINT_2F p1{ size.width, size.height - 0.5f };
-    pRT->DrawLine(p0, p1, m_pBr1);
+    SelectObject(hdc, pen0);
+    MoveToEx(hdc, nOffset + 2, rect.bottom - 3, NULL);
+    LineTo(hdc, rect.right - 2, rect.bottom - 3);
+    LineTo(hdc, rect.right - 2, rect.top);
 
-    //ID2D1GdiInteropRenderTarget * m_pGDIRT;
-    //D2D1_RENDER_TARGET_PROPERTIES rtProps = D2D1::RenderTargetProperties();
-    //rtProps.usage = D2D1_RENDER_TARGET_USAGE_GDI_COMPATIBLE;
+    SelectObject(hdc, old);
+    DeleteObject(pen0);
+    DeleteObject(pen1);
+    DeleteObject(pen2);
+    DeleteObject(pen3);
 
-    //D2D1_SIZE_F fs = pRT->GetSize();
-    //D2D1_SIZE_U us = { (UINT)fs.width, (UINT)fs.height };
-
-    //// Create a GDI compatible Hwnd render target.
-    //HRESULT hr = m_pDirect2dFactory->CreateHwndRenderTarget(
-    //    rtProps,
-    //    D2D1::HwndRenderTargetProperties(m_hWnd, us),
-    //    &pRT);
-
+    //HRESULT hr = CreateDeviceDependentResources();
 
     //if (SUCCEEDED(hr))
     //{
-    //    hr = m_pRenderTarget->QueryInterface(__uuidof(ID2D1GdiInteropRenderTarget), (void**)&m_pGDIRT);
-
-    //    HDC hDC = NULL;
-    //    hr = m_pGDIRT->GetDC(D2D1_DC_INITIALIZE_MODE_COPY, &hDC);
-
-    //    if (SUCCEEDED(hr))
+    //    m_pRenderTarget->BeginDraw();
+    //    m_pRenderTarget->Clear(D2D1::ColorF(GetSysColor(COLOR_WINDOW)));
+    //
+    //    //========================================================================
+    //    // Begin painting
+    //    //========================================================================
+    //    hr = OnPaint2D(m_pRenderTarget, NULL);
+    //
+    //    //========================================================================
+    //    // End painting
+    //    //========================================================================
+    //
+    //    hr = m_pRenderTarget->EndDraw();
+    //
+    //    if (hr == D2DERR_RECREATE_TARGET)
     //    {
+    //        hr = S_OK;
+    //        DiscardDeviceDependentResources();
     //    }
     //}
-
-
-    return S_OK;
+    return hr;
 }
