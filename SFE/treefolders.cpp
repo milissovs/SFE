@@ -6,6 +6,7 @@
 
 TCHAR m_szFolderClassName[] = TEXT("TREEFOLDER");
 
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #define CX_BITMAP 16	// Each icon width  (tileset)
 #define CY_BITMAP 16	// Each icon height (tileset)
@@ -42,25 +43,39 @@ LRESULT  CTreeFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
             break;
         }
 
-        case WM_NCLBUTTONDOWN:
-        {
-            HWND hParent = ::GetParent(m_hWnd);
-            ::PostMessage(hParent, WM_NCLBUTTONDOWN, (WPARAM)0, (LPARAM)0);
-            //m_bNCLButtonDown = TRUE;
+        //case WM_NCLBUTTONDOWN:
+        //{
+        //    HWND hParent = ::GetParent(m_hWnd);
+        //    ::PostMessage(hParent, WM_NCLBUTTONDOWN, (WPARAM)0, (LPARAM)0);
+        //    //m_bNCLButtonDown = TRUE;
 
-            //LRESULT hitTest = ::SendMessage(m_hWnd, WM_NCHITTEST, wParam, lParam);
-            //if (hitTest == HTLEFT)
-            //{
-            //    SetCapture(m_hWnd);
-            //}
-            break;
-        }
+        //    //LRESULT hitTest = ::SendMessage(m_hWnd, WM_NCHITTEST, wParam, lParam);
+        //    //if (hitTest == HTLEFT)
+        //    //{
+        //    //    SetCapture(m_hWnd);
+        //    //}
+        //    break;
+        //}
 
         case WM_LBUTTONDOWN:
         {
             HWND hParent = ::GetParent(m_hWnd);
             ::PostMessage(hParent, WM_LBUTTONDOWN, (WPARAM)0, (LPARAM)0);
 
+            TVHITTESTINFO hti{};
+            hti.pt = { GET_X_LPARAM(lParam) , GET_Y_LPARAM(lParam) };
+            hti.flags = TVHT_ONITEM | TVHT_ONITEMBUTTON | TVHT_ONITEMICON | TVHT_ONITEMINDENT | TVHT_ONITEMLABEL | TVHT_ONITEMRIGHT | TVHT_ONITEMSTATEICON;
+            TreeView_HitTest(m_hWnd, &hti);
+            if (hti.hItem != NULL)
+            {
+                TVITEM tvi;
+                tvi.mask = TVIF_HANDLE | TVIF_PARAM;
+                tvi.hItem = hti.hItem;
+                TreeView_GetItem(m_hWnd, &tvi);
+                size_t t = tvi.lParam;
+                TVI_PARAM& lp = m_tviParam.at(t);
+                MessageBox(NULL, lp.lpszItem, lp.lpszItem, 0);
+            }
             m_bLButtonDown = TRUE;
             break;
         }
@@ -112,17 +127,17 @@ LRESULT  CTreeFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
         //    else
         //    {
         //        UINT dpi = GetDpiForWindow(hWnd);
-
+        //
         //        int frame_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
         //        int frame_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
         //        int padding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
-
+        //
         //        LPNCCALCSIZE_PARAMS p = (LPNCCALCSIZE_PARAMS)lParam;
         //        p->rgrc[0].top += padding; // (int)(20 * m_fScale);
         //        p->rgrc[0].left += 3; // frame_x + padding; //3;
         //        p->rgrc[0].right -= 3; // frame_x + padding; //3;
         //        p->rgrc[0].bottom -= 3; // frame_y + padding; // 3;
-
+        //
         //        return WVR_VALIDRECTS;
         //    }
         //}
@@ -174,11 +189,6 @@ LRESULT  CTreeFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
             HDC hdc = BeginPaint(m_hWnd, &ps);
             OnPaint2D();
 
-            //HBRUSH title_bar_brush = CreateSolidBrush(RGB(150, 200, 180));
-            //RECT wr = rect;
-            //wr.top = 0;
-            //wr.bottom = 20;
-            //FillRect(hdc, &wr, title_bar_brush);
             EndPaint(m_hWnd, &ps);
 
             return 0;
@@ -203,6 +213,7 @@ CTreeFolders::CTreeFolders()
     , oldTreeWndProc(NULL)
     , m_fScale(1.0f)
     , m_nPosition(1)
+    , m_tviParam()
 {
 
 }
@@ -254,10 +265,17 @@ HWND CTreeFolders::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
     m_hWnd = CreateWindowEx(
         //WS_EX_CLIENTEDGE |
         WS_EX_TRANSPARENT |
-        WS_EX_COMPOSITED,
+        WS_EX_COMPOSITED |
+        TVS_EX_DOUBLEBUFFER,
         WC_TREEVIEW, //m_szFolderClassName,
         NULL,
-        WS_VISIBLE | WS_CHILD | WS_VSCROLL,
+        WS_VISIBLE |
+        WS_CHILD |
+        WS_VSCROLL |
+        TVS_SHOWSELALWAYS |
+        TVS_NOHSCROLL |
+        TVS_FULLROWSELECT |
+        TVS_HASBUTTONS,
         0,
         0,
         200,
@@ -270,14 +288,15 @@ HWND CTreeFolders::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
     if (m_hWnd)
     {
         m_nWidth = 300;
-        SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
-        oldTreeWndProc = (LONG_PTR)SetWindowLongPtr(m_hWnd, GWLP_WNDPROC, (LONG_PTR)TreeProcEx);
+        //SendMessage(m_hWnd, TVM_SETEXTENDEDSTYLE, 0x1000, 0x1000);
+        //SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
+        //oldTreeWndProc = (LONG_PTR)SetWindowLongPtr(m_hWnd, GWLP_WNDPROC, (LONG_PTR)TreeProcEx);
     }
 
     return m_hWnd;
 }
 
-HTREEITEM CTreeFolders::AddFolder(HWND hwndTV, LPCTSTR lpszItem, int nLevel)
+HTREEITEM CTreeFolders::AddFolder(HTREEITEM htiRoot, LPCTSTR lpszItem, int nLevel)
 {
     TVITEM tvi = { 0 };
     TVINSERTSTRUCT tvins;
@@ -287,15 +306,20 @@ HTREEITEM CTreeFolders::AddFolder(HWND hwndTV, LPCTSTR lpszItem, int nLevel)
     static HTREEITEM hPrevLev3Item = NULL;
     HTREEITEM hti;
 
-    tvi.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
+    tvi.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM; //
 
-    tvi.pszText = (LPTSTR)lpszItem;
-    tvi.cchTextMax = lstrlen(lpszItem); // (long)sizeof(tvi.pszText) / (long)sizeof(tvi.pszText[0]);
+    tvi.pszText = (LPTSTR)L"\0";//(LPTSTR)lpszItem;// lpszItem;
+    tvi.cchTextMax = lstrlen(L"\0"); // lstrlen(lpszItem);// (long)sizeof(tvi.pszText) / (long)sizeof(tvi.pszText[0]);
 
     tvi.iImage = 0;
     tvi.iSelectedImage = 0;
 
-    tvi.lParam = (LPARAM)nLevel;
+    TVI_PARAM tviparam;
+    tviparam.index = m_tviParam.size();
+    tviparam.lpszItem = lpszItem;
+    m_tviParam.push_back(tviparam);
+
+    tvi.lParam = (LPARAM)tviparam.index; // nLevel;
     tvins.item = tvi;
     tvins.hInsertAfter = hPrev;
 
@@ -306,7 +330,7 @@ HTREEITEM CTreeFolders::AddFolder(HWND hwndTV, LPCTSTR lpszItem, int nLevel)
     else if (nLevel == 3)
         tvins.hParent = hPrevLev2Item;
 
-    hPrev = (HTREEITEM)SendMessage(hwndTV, TVM_INSERTITEM, 0, (LPARAM)(LPTVINSERTSTRUCT)&tvins);
+    hPrev = (HTREEITEM)SendMessage(m_hWnd, TVM_INSERTITEM, 0, (LPARAM)(LPTVINSERTSTRUCT)&tvins);
 
     if (hPrev == NULL)
         return NULL;
@@ -319,12 +343,12 @@ HTREEITEM CTreeFolders::AddFolder(HWND hwndTV, LPCTSTR lpszItem, int nLevel)
         hPrevLev3Item = hPrev;
 
     if (nLevel > 1) {
-        hti = TreeView_GetParent(hwndTV, hPrev);
+        hti = TreeView_GetParent(m_hWnd, hPrev);
         tvi.mask = TVIF_IMAGE | TVIF_SELECTEDIMAGE;
         tvi.hItem = hti;
         tvi.iImage = 0;
         tvi.iSelectedImage = 0;
-        TreeView_SetItem(hwndTV, &tvi);
+        TreeView_SetItem(m_hWnd, &tvi);
     }
 
     return hPrev;
@@ -397,11 +421,15 @@ HRESULT CTreeFolders::CreateDeviceDependentResources()
 
         float dpiX{ 96.0f };
         float dpiY{ 96.0f };
-        m_pRenderTarget->GetDpi(&dpiX, &dpiY);
+        if (m_pRenderTarget != NULL)
+            m_pRenderTarget->GetDpi(&dpiX, &dpiY);
         m_fScale = dpiX / 96.0f;
 
         // Force WM_NCCALCSIZE
-        SetWindowPos(m_hWnd, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED  | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOCOPYBITS);
+        //SetWindowPos(m_hWnd, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED  | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOCOPYBITS);
+
+        TreeView_SetItemHeight(m_hWnd, (int)(20 * m_fScale));
+
     }
 
     return hr;
@@ -433,6 +461,35 @@ HRESULT CTreeFolders::OnPaint2D()
 
         D2D1_RECT_F rect{ 0.0f, 0.0f, rtSize.width, rtSize.height };
 
+        HTREEITEM hti =  TreeView_GetFirstVisible(m_hWnd);
+        TVITEM tvi;
+        tvi.mask = TVIF_PARAM;
+        tvi.hItem = hti;
+
+        TreeView_GetItem(m_hWnd, &tvi);
+        size_t pos = (size_t)tvi.lParam;
+        TVI_PARAM& tviparam = m_tviParam.at(pos);
+
+        RECT rc;
+        TreeView_GetItemRect(m_hWnd, hti, &rc, FALSE);
+        D2D1_RECT_F frc{
+            (float)rc.left / m_fScale,
+            (float)rc.top / m_fScale,
+            (float)rtSize.width / m_fScale,
+            (float)rc.bottom / m_fScale };
+        m_pRenderTarget->DrawRectangle(& frc, m_pBr1);
+
+        while (hti)
+        {
+            hti = TreeView_GetNextVisible(m_hWnd, hti);
+            TreeView_GetItemRect(m_hWnd, hti, &rc, FALSE);
+            D2D1_RECT_F frc{
+                (float)rc.left / m_fScale,
+                (float)rc.top / m_fScale,
+                (float)rtSize.width / m_fScale,
+                (float)rc.bottom / m_fScale };
+            m_pRenderTarget->DrawRectangle(&frc, m_pBr1);
+        }
 
         //========================================================================
         // End painting
@@ -512,3 +569,4 @@ void CTreeFolders::OnNcPaint(WPARAM wParam)
         DeleteObject(pen2);
     }
 }
+

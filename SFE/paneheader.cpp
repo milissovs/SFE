@@ -6,6 +6,10 @@
 
 TCHAR m_szPaneHeaderClassName[] = TEXT("PANEHEADER");
 
+#define IDM_CONTEXT_LINE   1000
+#define IDM_CONTEXT_RECTAN 1001
+#define IDM_CONTEXT_CIRCLE 1002
+#define IDM_MOVE_PANE      1003 
 
 #define CX_BITMAP 16	// Each icon width  (tileset)
 #define CY_BITMAP 16	// Each icon height (tileset)
@@ -46,10 +50,30 @@ LRESULT  CPaneHeader::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
             return 0;
         }
 
+        case WM_COMMAND:
+        {
+            switch (wParam)
+            {
+                case IDM_MOVE_PANE:
+                {
+                    if (m_nPanePos == 0)
+                        SetPosition(1);
+                    else
+                        SetPosition(0);
+
+                    //Inform parent that need to change entire pane position
+                    PostMessage(GetParent(m_hWnd), WM_PANE_FOLDER, 0, m_nPanePos);
+
+                    break;
+                }
+            }
+            break;
+        }
+
         case WM_SIZE:
         {
-            UINT width = LOWORD(lParam);
-            UINT height = HIWORD(lParam);
+            UINT width = GET_X_LPARAM(lParam);
+            UINT height = GET_Y_LPARAM(lParam);
             OnSize((UINT)wParam, width, height);
             break;
         }
@@ -63,11 +87,12 @@ LRESULT  CPaneHeader::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
 
         case WM_LBUTTONDOWN:
         {
-            UINT nX = LOWORD(lParam);
-            UINT nY = HIWORD(lParam);
+            UINT nX = GET_X_LPARAM(lParam);
+            UINT nY = GET_Y_LPARAM(lParam);
+            OnLButtonDown((UINT)wParam, nX, nY);
+
             HWND hParent = ::GetParent(m_hWnd);
             ::PostMessage(hParent, WM_LBUTTONDOWN, (WPARAM)0, (LPARAM)0);
-            OnLButtonDown((UINT)wParam, nX, nY);
             break;
         }
 
@@ -75,6 +100,28 @@ LRESULT  CPaneHeader::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
         {
             m_bMouseTracking = FALSE;
             bMouseOverBtn = -1;
+            break;
+        }
+
+        case WM_RBUTTONDOWN:
+        {
+            //if (bMouseOverBtn == 0)
+            //{
+            //    POINT pt;
+            //    HMENU hMenuPopup = CreatePopupMenu();
+            //    AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_LINE, L"Line");
+            //    AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_RECTAN, L"Rectangle");
+            //    AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_CIRCLE, L"Circle");
+            //    AppendMenu(hMenuPopup, MF_SEPARATOR, 0, NULL);
+            //    AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_HELP, L"Help");
+            //    pt.x = GET_X_LPARAM(lParam);
+            //    pt.y = GET_Y_LPARAM(lParam);
+            //    ClientToScreen(hWnd, &pt);
+            //    TrackPopupMenu(hMenuPopup,
+            //        TPM_RETURNCMD | TPM_LEFTALIGN | TPM_RIGHTBUTTON,
+            //        pt.x, pt.y, 0, hWnd, NULL);
+            //    DestroyMenu(hMenuPopup);
+            //}
             break;
         }
 
@@ -121,7 +168,7 @@ CPaneHeader::CPaneHeader()
     , m_pBrBlack(NULL)
     , m_nPanePos(1)
 {
-    m_buttons[0].title = L"📌";
+    m_buttons[0].title = L"☰"; //✈✜✴✶❖⭗📍🛧🛨🛪
     m_buttons[1].title = L">";
 }
 
@@ -323,8 +370,8 @@ HRESULT CPaneHeader::OnPaint2D()
 
         if (bMouseOverBtn == 0)
         {
-            m_pRenderTarget->DrawRoundedRectangle(m_buttons[0].rr_outer, m_pBr2, 2);
-            m_pRenderTarget->DrawRoundedRectangle(m_buttons[0].rr_innner, m_pBr2, 2);
+            //m_pRenderTarget->DrawRoundedRectangle(m_buttons[0].rr_outer, m_pBr2, 2);
+            //m_pRenderTarget->DrawRoundedRectangle(m_buttons[0].rr_innner, m_pBr2, 2);
             m_pRenderTarget->DrawRoundedRectangle(m_buttons[0].rr_middle, m_pBr1);
             //if (m_buttons[0].state & BST_CHECKED)
             //    m_pRenderTarget->DrawText(m_buttons[0].title, 2, m_pTFC, &m_buttons[0].rr_middle.rect, m_pBr1);
@@ -345,29 +392,29 @@ HRESULT CPaneHeader::OnPaint2D()
             m_pRenderTarget->DrawText(m_buttons[0].title, 2, m_pTFC, &m_buttons[0].rr_middle.rect, m_pBrGray033);
         }
 
-        if (bMouseOverBtn == 1)
-        {
-            m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_outer, m_pBr2, 2);
-            m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_innner, m_pBr2, 2);
-            m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_middle, m_pBr1);
-            //if (m_buttons[1].state & BST_CHECKED)
-            //    m_pRenderTarget->DrawText(m_buttons[1].title, 2, m_pTFC, &m_buttons[1].rr_middle.rect, m_pBr1);
-            //else
-            m_pRenderTarget->DrawText(m_buttons[1].title, 2, m_pTFC, &m_buttons[1].rr_middle.rect, m_pBr1);
-        }
-        else
-        {
-            //if (m_buttons[1].state & BST_CHECKED)
-            //{
-            //    m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_middle, m_pBr2);
-            //    //m_pRenderTarget->DrawText(m_buttons[1].title, 2, m_pTFC, &m_buttons[1].rr_middle.rect, m_pBr1);
-            //}
-            //else
-            //{
-            //    //m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_middle, m_pBrGray196);
-            //}
-            m_pRenderTarget->DrawText(m_buttons[1].title, 2, m_pTFC, &m_buttons[1].rr_middle.rect, m_pBrGray033);
-        }
+        //if (bMouseOverBtn == 1)
+        //{
+        //    //m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_outer, m_pBr2, 2);
+        //    //m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_innner, m_pBr2, 2);
+        //    m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_middle, m_pBr1);
+        //    //if (m_buttons[1].state & BST_CHECKED)
+        //    //    m_pRenderTarget->DrawText(m_buttons[1].title, 2, m_pTFC, &m_buttons[1].rr_middle.rect, m_pBr1);
+        //    //else
+        //    m_pRenderTarget->DrawText(m_buttons[1].title, 2, m_pTFC, &m_buttons[1].rr_middle.rect, m_pBr1);
+        //}
+        //else
+        //{
+        //    //if (m_buttons[1].state & BST_CHECKED)
+        //    //{
+        //    //    m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_middle, m_pBr2);
+        //    //    //m_pRenderTarget->DrawText(m_buttons[1].title, 2, m_pTFC, &m_buttons[1].rr_middle.rect, m_pBr1);
+        //    //}
+        //    //else
+        //    //{
+        //    //    //m_pRenderTarget->DrawRoundedRectangle(m_buttons[1].rr_middle, m_pBrGray196);
+        //    //}
+        //    m_pRenderTarget->DrawText(m_buttons[1].title, 2, m_pTFC, &m_buttons[1].rr_middle.rect, m_pBrGray033);
+        //}
 
 
         //========================================================================
@@ -395,12 +442,12 @@ void CPaneHeader::OnMouseMove(UINT flag, POINT pt)
         return;
     }
 
-    if (PtInRect(&m_buttons[1].rect, point))
-    {
-        bMouseOverBtn = 1;
-        InvalidateRect(m_hWnd, NULL, NULL);
-        return;
-    }
+    //if (PtInRect(&m_buttons[1].rect, point))
+    //{
+    //    bMouseOverBtn = 1;
+    //    InvalidateRect(m_hWnd, NULL, NULL);
+    //    return;
+    //}
 
     bMouseOverBtn = -1;
 }
@@ -435,27 +482,50 @@ void CPaneHeader::CalculateLayout(RECT rc)
 
 void CPaneHeader::OnLButtonDown(UINT nType, UINT nX, UINT nY)
 {
-    if (bMouseOverBtn >= 0 && bMouseOverBtn <= 2)
-    {
-        if (bMouseOverBtn == 1)
-        {
-            if (m_nPanePos == 0)
-                SetPosition(1);
-            else
-                SetPosition(0);
+    //if (bMouseOverBtn >= 0 && bMouseOverBtn <= 2)
+    //{
+    //    if (bMouseOverBtn == 1)
+    //    {
+    //        if (m_nPanePos == 0)
+    //            SetPosition(1);
+    //        else
+    //            SetPosition(0);
 
-            //Inform parent that need to change entire pane position
-            PostMessage(GetParent(m_hWnd), WM_PANE_FOLDER, 0, m_nPanePos);
-        }
-        else
+    //        //Inform parent that need to change entire pane position
+    //        PostMessage(GetParent(m_hWnd), WM_PANE_FOLDER, 0, m_nPanePos);
+    //    }
+    //    else
+    //    {
+    //        if (m_buttons[bMouseOverBtn].state & BST_CHECKED)
+    //            m_buttons[bMouseOverBtn].state = BST_UNCHECKED;
+    //        else
+    //            m_buttons[bMouseOverBtn].state = BST_CHECKED;
+    //    }
+
+        if (bMouseOverBtn == 0)
         {
-            if (m_buttons[bMouseOverBtn].state & BST_CHECKED)
-                m_buttons[bMouseOverBtn].state = BST_UNCHECKED;
+            POINT pt;
+            HMENU hMenuPopup = CreatePopupMenu();
+            AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_LINE, L"Line");
+            AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_RECTAN, L"Rectangle");
+            AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_CIRCLE, L"Circle");
+            AppendMenu(hMenuPopup, MF_SEPARATOR, 0, NULL);
+            if (m_nPanePos == 0)
+                AppendMenu(hMenuPopup, MF_STRING, IDM_MOVE_PANE, L"To the right side ->");
             else
-                m_buttons[bMouseOverBtn].state = BST_CHECKED;
+                AppendMenu(hMenuPopup, MF_STRING, IDM_MOVE_PANE, L"To the left side <-");
+
+            pt.x = nX;
+            pt.y = nY;
+            ClientToScreen(m_hWnd, &pt);
+            TrackPopupMenu(hMenuPopup,
+                TPM_LEFTALIGN | TPM_RIGHTBUTTON,
+                pt.x, pt.y, 0, m_hWnd, NULL);
+            DestroyMenu(hMenuPopup);
         }
-        InvalidateRect(m_hWnd, NULL, NULL);
-    }
+
+        //InvalidateRect(m_hWnd, NULL, NULL);
+    //}
 }
 
 void CPaneHeader::SetPosition(int nPosition)

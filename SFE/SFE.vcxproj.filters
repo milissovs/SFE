@@ -54,6 +54,12 @@
     <ClCompile Include="btnpane.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="listfolders.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="drag_drop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mainframe.h">
@@ -96,6 +102,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="btnpane.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="listfolders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="drag_drop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="folder_item.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

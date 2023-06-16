@@ -3,6 +3,13 @@
 
 #include <commctrl.h>
 #include <d2d1.h>
+#include <vector>
+
+typedef struct _TVI_PARAM_
+{
+	size_t index = 0;
+	LPCTSTR lpszItem{};
+} TVI_PARAM;
 
 class CTreeFolders
 {
@@ -13,7 +20,7 @@ public:
 	LRESULT WindowProcedure(HWND, UINT, WPARAM, LPARAM);
 
 	HWND      Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam);
-	HTREEITEM AddFolder(HWND hWndTV, LPCTSTR lpszItem, int nLevel);
+	HTREEITEM AddFolder(HTREEITEM htiRoot, LPCTSTR lpszItem, int nLevel);
 	BOOL      InitTreeViewImageLists(HWND hwnd);
 
 	int GetWidth() { return m_nWidth; };
@@ -23,6 +30,8 @@ public:
 
 	void     OnSize(UINT nType, UINT nWidth, UINT nHeight);
 	void     OnNcPaint(WPARAM wParam);
+
+
 
 	HWND m_hWnd;
 	int  m_nWidth;
@@ -51,6 +60,9 @@ private:
 
 	// Release device-dependent resource.
 	void DiscardDeviceDependentResources();
+
+private:
+	std::vector<TVI_PARAM> m_tviParam;
 };
 
 #endif // TREEFOLDERS_H_INCLUDED

@@ -13,6 +13,8 @@ inline void SafeRelease(Interface** ppInterfaceToRelease)
     }
 }
 
+#define TEST_PATH L"\\\\server3\\Public\\PROJECTS DOCUMENTS\\Table reports\\!!! Unicredit 2023\\Individuals W1 2023\\!Reports\\01_IT\\AdNow"
+
 #define FOLDER_POSITION_LEFT 0
 #define FOLDER_POSITION_RIGHT 1
 
@@ -21,6 +23,7 @@ inline void SafeRelease(Interface** ppInterfaceToRelease)
 #define WM_FOLDER_RESIZE     WM_USER + 3
 #define WM_PANE_FOLDER       WM_USER + 4
 #define WM_UPDATE_SETTINGS   WM_USER + 5
+#define WM_DDD_FOLDERS       WM_USER + 6
 
 #ifndef _DPI_AWARENESS_CONTEXTS_
 #define _DPI_AWARENESS_CONTEXTS_

@@ -62,28 +62,6 @@ LRESULT  CMDIFrame::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPAR
             break;
         }
 
-        //case WM_NCCALCSIZE:
-        //{
-        //    if (wParam == FALSE)
-        //    {
-        //        LPRECT r = (LPRECT)lParam;
-        //        return 0;
-        //    }
-        //    else
-        //    {
-        //        LPNCCALCSIZE_PARAMS p = (LPNCCALCSIZE_PARAMS)lParam;
-        //        if (m_wndFolderPane.GetPanePosition() == 0)
-        //            p->rgrc[0].right -= 3;
-        //        else
-        //            p->rgrc[0].left += 3;
-
-        //        //p->rgrc[0].top += +3;
-        //        //p->rgrc[0].bottom -= 3;
-
-        //        return WVR_VALIDRECTS;
-        //    }
-        //}
-
         case WM_UPDATE_SETTINGS:
         {
             SendMessage(GetParent(hWnd), WM_UPDATE_SETTINGS, 0, 0);
@@ -145,7 +123,55 @@ LRESULT  CMDIFrame::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPAR
                     //InvalidateRect(m_hWnd, NULL, TRUE);
                     break;
                 }
+                case 2: // Pressed PIN button
+                {
+                    //if (m_wndFolderPane.GetCollapsible())
+                    //{
+                    //    BOOL bCollapsed = m_wndFolderPane.GetCollapsed();
+                    //    if (!bCollapsed)
+                    //    {
+                            RECT rc;
+                            GetClientRect(m_hWnd, &rc);
+                            PostMessage(m_hWnd, WM_SIZE, 0, MAKELPARAM(rc.right - rc.left, rc.bottom - rc.top));
+                    //    }
+                    //}
+                    break;
+                }
             }
+            break;
+        }
+
+        case WM_MOUSEMOVE:
+        {
+            RECT rc;
+            GetClientRect(m_hWnd, &rc);
+            POINT pt{ GET_X_LPARAM(lParam) , GET_Y_LPARAM(lParam) };
+
+            if (rc.right - pt.x < 10)
+            {
+                if (m_wndFolderPane.GetCollapsed())
+                {
+                    m_wndFolderPane.SetCollapsed(FALSE);
+                    //ShowWindow(m_wndFolderPane.m_hWnd, SW_RESTORE);
+                    //SetWindowPos(m_wmdListView.m_hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOREPOSITION);
+                    //SetWindowPos(m_wndFolderPane.m_hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOREPOSITION);
+                    RECT rc;
+                    GetClientRect(m_hWnd, &rc);
+                    OnSize((UINT)0, rc.right - rc.left, rc.bottom - rc.top);
+                }
+            }
+            break;
+        }
+
+        case WM_CLOSE:
+        {
+            DestroyWindow(hWnd);
+            break;
+        }
+
+        case WM_DESTROY:
+        {
+            PostQuitMessage(0);
             break;
         }
 
@@ -154,7 +180,6 @@ LRESULT  CMDIFrame::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPAR
     }
     return 0;
 }
-
 
 HWND CMDIFrame::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
 {
@@ -194,7 +219,7 @@ HWND CMDIFrame::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
         WS_EX_CONTROLPARENT,                      /* Extended possibilites for variation */
         m_szMDIFrameClassName,  /* Classname */
         NULL,                   /* Title Text */
-        WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN, // | WS_BORDER,  /* child window */
+        WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, // | WS_BORDER,  /* child window */
         0,                      /* Windows decides the position */
         0,                      /* where the window ends up on the screen */
         100,                    /* The programs width */
@@ -263,6 +288,7 @@ RECT CMDIFrame::MoveFolder(RECT rect)
 {
     RECT fr{ rect };
     RECT lr{ rect };
+
     if (m_wndFolderPane.GetPanePosition() == 0)
     {
         fr.right = rect.left + m_wndFolderPane.GetPaneWidth();
@@ -277,9 +303,30 @@ RECT CMDIFrame::MoveFolder(RECT rect)
     int toolbar_height = (int)(m_wndTPane.GetHeight() * m_fScale);
     fr.top += toolbar_height;
     lr.top += toolbar_height;
-    MoveWindow(m_wndFolderPane.m_hWnd, fr.left, fr.top, fr.right - fr.left, fr.bottom - fr.top, FALSE);
 
-    MoveWindow(m_wmdListView.m_hWnd, lr.left, lr.top, lr.right - lr.left, lr.bottom - lr.top, FALSE);
+    if (!m_wndFolderPane.GetCollapsible())
+    {
+        MoveWindow(m_wndFolderPane.m_hWnd, fr.left, fr.top, fr.right - fr.left, fr.bottom - fr.top, FALSE);
+
+        MoveWindow(m_wmdListView.m_hWnd, lr.left, lr.top, lr.right - lr.left, lr.bottom - lr.top, FALSE);
+    }
+    else
+    {
+        rect.top += (int)(m_wndTPane.GetHeight() * m_fScale);
+        if (!m_wndFolderPane.GetCollapsed())
+        {
+            //ShowWindow(m_wndFolderPane.m_hWnd, SW_HIDE);
+            m_wndFolderPane.SetCollapsed(TRUE);
+            MoveWindow(m_wndFolderPane.m_hWnd, rect.right - 30, rect.top, rect.right - rect.left, rect.bottom - rect.top, FALSE);
+            SetWindowPos(m_wndFolderPane.m_hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+        }
+        else
+        {
+            m_wndFolderPane.SetCollapsed(FALSE);
+            MoveWindow(m_wndFolderPane.m_hWnd, rect.right - m_wndFolderPane.GetPaneWidth(), rect.top, rect.right, rect.bottom - rect.top, FALSE);
+        }
+        MoveWindow(m_wmdListView.m_hWnd, rect.left, rect.top, rect.right - rect.left - 30, rect.bottom - rect.top, FALSE);
+    }
 
     return fr;
 }

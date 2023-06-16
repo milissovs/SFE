@@ -238,6 +238,8 @@ int CTPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
     m_wndBtnPane.Create(hWnd, lpCS->hInstance, &m_wndBtnPane);
     m_wndBC.Create(hWnd, lpCS->hInstance, &m_wndBC);
 
+    m_wndBC.SetPath(TEST_PATH);
+
     return 1;
 }
 

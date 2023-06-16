@@ -109,6 +109,12 @@ LRESULT  CMainFrame::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPA
         break;
     }
 
+    case WM_CLOSE:
+    {
+        DestroyWindow(hWnd);
+        break;
+    }
+
     default: /* for messages that we don't deal with */
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -458,7 +464,7 @@ BOOL CMainFrame::WriteRegistry(REGISTRY& regs)
 
 void CMainFrame::OnDestroy()
 {
-
+    OleUninitialize();
 }
 
 void CMainFrame::SnapWindow()

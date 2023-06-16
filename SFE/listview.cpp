@@ -42,11 +42,32 @@ LRESULT  CListView::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPAR
             return 0;
         }
 
+        case WM_DESTROY:
+        {
+            PostQuitMessage(0); 
+            break;
+        }
+
+        case WM_CLOSE:
+        {
+            DestroyWindow(hWnd);
+            break;
+        }
+
         case WM_SIZE:
         {
             UINT width = LOWORD(lParam);
             UINT height = HIWORD(lParam);
             OnSize((UINT)wParam, width, height);
+            break;
+        }
+
+        case WM_MOUSEMOVE:
+        {
+            POINT pt = { LOWORD(lParam), HIWORD(lParam)};
+            ClientToScreen(m_hWnd, &pt);
+            ScreenToClient(GetParent(m_hWnd), &pt);
+            PostMessage(GetParent(m_hWnd), WM_MOUSEMOVE, wParam, MAKELPARAM(pt.x, pt.y));
             break;
         }
 
@@ -104,7 +125,7 @@ HWND CListView::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
         WS_EX_COMPOSITED,
         WC_LISTVIEW, //m_szFolderClassName,
         NULL,
-        WS_VISIBLE | WS_CHILD | WS_VSCROLL, // | WS_BORDER,
+        WS_VISIBLE | WS_CHILD | WS_VSCROLL | WS_CLIPSIBLINGS, // | WS_BORDER,
         0,
         0,
         200,

@@ -53,6 +53,11 @@ LRESULT  CFolderPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
         HWND hParent = ::GetParent(m_hWnd);
         ::PostMessage(hParent, WM_LBUTTONDOWN, (WPARAM)0, (LPARAM)0);
 
+        if (m_bCollapsed)
+        {
+            ::PostMessage(hParent, WM_FOLDER_RESIZE, 2, 0);
+        }
+
         m_bLButtonDown = TRUE;
         break;
     }
@@ -79,9 +84,9 @@ LRESULT  CFolderPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
         ScreenToClient(hWnd, &pt);
         RECT rect;
         GetClientRect(hWnd, &rect);
-        if (pt.x < 0)
+        if (pt.x <= 0)
             return HTLEFT;
-        if (pt.x > (rect.right - rect.left))
+        if (pt.x >= (rect.right - rect.left))
             return HTRIGHT;
 
 
@@ -95,6 +100,16 @@ LRESULT  CFolderPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
         {
             ClientToScreen(m_hWnd, &pt);
             PostMessage(::GetParent(m_hWnd), WM_FOLDER_RESIZE, (WPARAM)0, MAKELPARAM(pt.x, pt.y));
+            return 0;
+        }
+        if (!m_bMouseTracking)
+        {
+            TRACKMOUSEEVENT tme;
+            tme.cbSize = sizeof(TRACKMOUSEEVENT);
+            tme.dwFlags = TME_LEAVE;
+            tme.hwndTrack = hWnd;
+            TrackMouseEvent(&tme);
+            m_bMouseTracking = TRUE;
         }
         break;
     }
@@ -106,6 +121,21 @@ LRESULT  CFolderPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
         {
             ClientToScreen(m_hWnd, &pt);
             PostMessage(::GetParent(m_hWnd), WM_FOLDER_RESIZE, (WPARAM)0, MAKELPARAM(pt.x, pt.y));
+            return 0;
+        }
+        OnNCMouseMove(pt);
+        break;
+    }
+
+    case WM_MOUSELEAVE:
+    {
+        m_bMouseTracking = FALSE;
+        if (m_bCollapsible && !m_bCollapsed)
+        {
+            m_bCollapsed = TRUE;
+            //ShowWindow(m_hWnd, SW_HIDE);
+            HWND hParent = ::GetParent(m_hWnd);
+            ::PostMessage(hParent, WM_FOLDER_RESIZE, 2, 0);
         }
         break;
     }
@@ -139,6 +169,17 @@ LRESULT  CFolderPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
         break;
     }
 
+    case WM_NOTIFY:
+    {
+        LRESULT lResult;
+        if (OnNotify(wParam, lParam, &lResult))
+            return lResult;
+        else
+            return DefWindowProc(hWnd, message, wParam, lParam);
+
+        break;
+    }
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -151,6 +192,9 @@ CFolderPane::CFolderPane()
     , m_bLButtonDown(FALSE)
     , m_nWidth(300)
     , m_nPanePos(0)
+    , m_bCollapsible(FALSE)
+    , m_bCollapsed(FALSE)
+    , m_bMouseTracking(FALSE)
 {
 
 }
@@ -192,10 +236,10 @@ HWND CFolderPane::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
     }
 
     m_hWnd = CreateWindowEx(
-        WS_EX_COMPOSITED | WS_EX_TRANSPARENT | WS_EX_CLIENTEDGE,
+        WS_EX_COMPOSITED | WS_EX_TRANSPARENT,
         m_szPaneClassName,
         NULL,
-        WS_VISIBLE | WS_CHILD | WS_BORDER,
+        WS_VISIBLE | WS_CHILD | WS_BORDER | WS_CLIPSIBLINGS,
         0,
         0,
         200,
@@ -212,6 +256,14 @@ void CFolderPane::SetPanePosition(int nPosition)
 {
     m_nPanePos = nPosition;
     m_wndPaneHeader.SetPosition(nPosition);
+
+    LONG_PTR style = GetWindowLongPtr(m_wndListFolders.m_hWnd, GWL_EXSTYLE);
+    if (nPosition == 0)
+        style |= WS_EX_LEFTSCROLLBAR;
+    else
+        style &= ~WS_EX_LEFTSCROLLBAR;
+
+    SetWindowLongPtr(m_wndListFolders.m_hWnd, GWL_EXSTYLE, style);
 }
 
 void CFolderPane::SetPaneWidth(int nWidth, BOOL bInit)
@@ -233,73 +285,66 @@ void CFolderPane::SetPaneWidth(int nWidth, BOOL bInit)
     m_nWidth = nWidth;
 }
 
-//void CFolderPane::OnNcPaint(WPARAM wParam)
-//{
-//    RECT rect;
-//    GetWindowRect(m_hWnd, &rect);
-//
-//    HRGN region = NULL;
-//    if (wParam == NULLREGION)
-//    {
-//        region = CreateRectRgn(rect.left, rect.top, rect.right, rect.bottom);
-//    }
-//    else
-//    {
-//        HRGN copy = CreateRectRgn(0, 0, 0, 0);
-//        if (CombineRgn(copy, (HRGN)wParam, NULL, RGN_COPY))
-//            region = copy;
-//        else
-//            DeleteObject(copy);
-//    }
-//
-//    HDC dc{ GetDCEx(m_hWnd, region, DCX_WINDOW | DCX_CACHE | DCX_INTERSECTRGN | DCX_LOCKWINDOWUPDATE) };
-//    if (!dc && region)
-//    {
-//        DeleteObject(region);
-//    }
-//    else
-//    {
-//        HPEN pen0{};
-//        HPEN pen1{};
-//        HPEN pen2{};
-//
-//        pen0 = CreatePen(PS_INSIDEFRAME, 1, RGB(127, 127, 127));
-//        pen1 = CreatePen(PS_INSIDEFRAME, 1, RGB(165, 165, 165));
-//        pen2 = CreatePen(PS_INSIDEFRAME, 1, RGB(222, 222, 222));
-//
-//        HGDIOBJ old{ SelectObject(dc, pen0) };
-//
-//        if (old != 0)
-//        {
-//            if (dc != 0)
-//            {
-//                SelectObject(dc, pen0);
-//                Rectangle(dc, 0, 0, rect.right - rect.left, rect.bottom - rect.top);
-//
-//                SelectObject(dc, pen1);
-//                Rectangle(dc, 1, 0, rect.right - rect.left - 1, rect.bottom - rect.top);
-//
-//                SelectObject(dc, pen2);
-//                Rectangle(dc, 2, 0, rect.right - rect.left - 2, rect.bottom - rect.top);
-//            }
-//        }
-//
-//        if (old != 0)
-//            SelectObject(dc, old);
-//        if (dc != 0)
-//            ReleaseDC(m_hWnd, dc);
-//        DeleteObject(pen1);
-//        DeleteObject(pen2);
-//    }
-//}
-
 int CFolderPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
 {
     HWND hW = m_wndPaneHeader.Create(hWnd, lpCS->hInstance, &m_wndPaneHeader);
-    //ShowWindow(hW, SW_SHOW);
 
-    hW = m_wndTreeForlders.Create(hWnd, lpCS->hInstance, &m_wndPaneHeader);
-    //ShowWindow(hW, SW_SHOW);
+    hW = m_wndListFolders.Create(hWnd, lpCS->hInstance, &m_wndListFolders);
+    m_wndListFolders.AddFolder(TEST_PATH);
+    HANDLE addr = m_wndListFolders.AddFolder(L"2");
+    m_wndListFolders.AddFolder(L"12", addr);
+    m_wndListFolders.AddFolder(L"13", addr);
+    m_wndListFolders.AddFolder(L"14", addr);
+    m_wndListFolders.AddFolder(L"15", addr);
+    m_wndListFolders.AddFolder(L"5");
+    m_wndListFolders.AddFolder(L"6");
+    m_wndListFolders.AddFolder(L"7");
+    m_wndListFolders.AddFolder(L"8");
+    m_wndListFolders.AddFolder(L"9");
+    m_wndListFolders.AddFolder(L"10");
+    //m_wndListFolders.AddFolder(L"11");
+    //m_wndListFolders.AddFolder(L"12");
+    //m_wndListFolders.AddFolder(L"13");
+    //m_wndListFolders.AddFolder(L"14");
+    //m_wndListFolders.AddFolder(L"15");
+    //m_wndListFolders.AddFolder(L"16");
+    //m_wndListFolders.AddFolder(L"17");
+    //m_wndListFolders.AddFolder(L"18");
+    //m_wndListFolders.AddFolder(L"19");
+    //m_wndListFolders.AddFolder(L"20");
+    //m_wndListFolders.AddFolder(L"21");
+    //m_wndListFolders.AddFolder(L"22");
+    //m_wndListFolders.AddFolder(L"23");
+    //m_wndListFolders.AddFolder(L"24");
+    //m_wndListFolders.AddFolder(L"25");
+    //m_wndListFolders.AddFolder(L"26");
+    //m_wndListFolders.AddFolder(L"27");
+    //m_wndListFolders.AddFolder(L"28");
+    //m_wndListFolders.AddFolder(L"29");
+    //m_wndListFolders.AddFolder(L"30");
+    //m_wndListFolders.AddFolder(L"31");
+    //m_wndListFolders.AddFolder(L"32");
+    //m_wndListFolders.AddFolder(L"33");
+    //m_wndListFolders.AddFolder(L"34");
+    //m_wndListFolders.AddFolder(L"35");
+    //m_wndListFolders.AddFolder(L"36");
+    //m_wndListFolders.AddFolder(L"37");
+    //m_wndListFolders.AddFolder(L"38");
+    //m_wndListFolders.AddFolder(L"39");
+    //m_wndListFolders.AddFolder(L"40");
+    //m_wndListFolders.AddFolder(L"41");
+    //m_wndListFolders.AddFolder(L"42");
+    //m_wndListFolders.AddFolder(L"43");
+    //m_wndListFolders.AddFolder(L"44");
+    //m_wndListFolders.AddFolder(L"45");
+    //m_wndListFolders.AddFolder(L"46");
+    //m_wndListFolders.AddFolder(L"47");
+    //m_wndListFolders.AddFolder(L"48");
+    addr  = m_wndListFolders.AddFolder(L"49");
+    m_wndListFolders.AddFolder(L"50", addr);
+    m_wndListFolders.AddFolder(L"51", addr);
+    m_wndListFolders.AddFolder(L"52", addr);
+    m_wndListFolders.AddFolder(L"53");
 
     return 1;
 }
@@ -313,7 +358,102 @@ void CFolderPane::OnSize(UINT nType, UINT nWidth, UINT nHeight)
     GetClientRect(m_hWnd, &rect);
 
     MoveWindow(m_wndPaneHeader.m_hWnd, rect.left, rect.top, rect.right - rect.left, 30, TRUE);
-    MoveWindow(m_wndTreeForlders.m_hWnd, rect.left, 30, rect.right - rect.left, rect.bottom - 30, TRUE);
+    MoveWindow(m_wndListFolders.m_hWnd, rect.left, 30, rect.right - rect.left, rect.bottom - 30, TRUE);
+    
 
     InvalidateRect(m_hWnd, NULL, TRUE);
+}
+
+void CFolderPane::OnNCMouseMove(POINT pt)
+{
+
+}
+
+BOOL CFolderPane::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult)
+{
+    // TODO: Add your specialized code here and/or call the base class
+
+    //LPNMHDR nmh = (LPNMHDR)lParam;
+    //if (nmh->hwndFrom == m_wndPaneHeader.m_hWnd)
+    //{
+    //    if (nmh->idFrom == 0)
+    //    {
+    //        switch (nmh->code)
+    //        {
+    //            case BN_CLICKED:
+    //            {
+    //                m_bCollapsible = !m_bCollapsible;
+    //                PostMessage(GetParent(m_hWnd), WM_FOLDER_RESIZE, 2, lParam);
+    //                break;
+    //            }
+    //        }
+    //    }
+    //}
+
+    //if (nmh->hwndFrom == m_wndTreeForlders.m_hWnd)
+    //{
+    //    switch (nmh->code)
+    //    {
+    //        case NM_CLICK:
+    //        {
+    //            PostMessage(m_hWnd, WM_LBUTTONDOWN, 0, 0);
+    //            break;
+    //        }
+
+    //        case NM_CUSTOMDRAW:
+    //        {
+    //            LPNMTVCUSTOMDRAW pCustomDraw = (LPNMTVCUSTOMDRAW)lParam;
+
+    //            switch (pCustomDraw->nmcd.dwDrawStage)
+    //            {
+
+    //            case CDDS_PREPAINT:
+    //            {
+    //                // Need to process this case and set pResult to CDRF_NOTIFYITEMDRAW,
+    //                // otherwise parent will never receive CDDS_ITEMPREPAINT notification. (GGH)
+    //                *pResult = CDRF_NOTIFYITEMDRAW;
+
+    //                return true;
+    //            }
+
+    //            case CDDS_ITEMPREPAINT:
+    //            {
+    //                switch (pCustomDraw->iLevel)
+    //                {
+    //                    // painting all 0-level items blue,
+    //                    // and all 1-level items red (GGH)
+
+    //                case 0:
+    //                {
+    //                    if (pCustomDraw->nmcd.uItemState == (CDIS_FOCUS | CDIS_SELECTED)) // selected
+    //                    {
+    //                        pCustomDraw->clrText = RGB(255, 255, 255);
+    //                        pCustomDraw->clrTextBk = RGB(127, 127, 127);
+    //                    }
+    //                    else
+    //                        pCustomDraw->clrText = RGB(255, 0, 0);
+    //                    break;
+    //                }
+    //                case 1:
+    //                {
+    //                    if (pCustomDraw->nmcd.uItemState == (CDIS_FOCUS | CDIS_SELECTED)) // selected
+    //                        pCustomDraw->clrText = RGB(255, 255, 255);
+    //                    else
+    //                        pCustomDraw->clrText = RGB(0, 255, 127);
+    //                    break;
+    //                }
+    //                }
+
+    //                *pResult = CDRF_SKIPDEFAULT;
+    //                return false;
+    //            }
+    //            }
+
+    //            break;
+    //        }
+    //    }
+    //}
+
+
+    return FALSE;
 }
