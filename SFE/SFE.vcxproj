@@ -147,6 +147,7 @@
     <ClCompile Include="button.cpp" />
     <ClCompile Include="drag_drop.cpp" />
     <ClCompile Include="folderpane.cpp" />
+    <ClCompile Include="folder_item.cpp" />
     <ClCompile Include="listfolders.cpp" />
     <ClCompile Include="listview.cpp" />
     <ClCompile Include="main.cpp" />

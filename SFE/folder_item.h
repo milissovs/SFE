@@ -4,12 +4,19 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <vector>
+#include <string>
 
 #define DEFAULT_ITEM_HEIGHT 24
 #define COLOR_DEFAULT RGB(157, 195, 230)
 
 #define FOLDER_UNLOCKED L" "
 #define FOLDER_LOCKED L"*"
+#define FOLDER_CONNECTOR_NEXT L"├"
+#define FOLDER_CONNECTOR_END L"└"
+
+class CFolderItem;
+typedef std::vector <CFolderItem*> folder_items;
+typedef struct _SELECTED_ITEM_ SELECTED_ITEM;
 
 enum HOVER_PART
 {
@@ -21,32 +28,35 @@ enum HOVER_PART
 
 typedef struct _SELECTED_ITEM_
 {
-	WORD level = 0;
-	WORD part = HOVER_PART::HP_MIDDLE;
-	LONG item = -1;
+	WORD   level = 0;
+	WORD   part = HOVER_PART::HP_MIDDLE;
+	LONG   item = -1;
 	HANDLE parent_item = NULL;
 	HANDLE handle_item = NULL;
+	BOOL   plus = FALSE;
 
 public:
-	bool operator == (const _SELECTED_ITEM_& oth)
+	bool operator == (const SELECTED_ITEM& oth)
 	{
-		if (this->item == oth.item &&
-			this->level == oth.level &&
-			this->part == oth.part &&
+		if (/*this->item == oth.item &&
+			this->level == oth.level &&*/
+			this->part        == oth.part &&
 			this->parent_item == oth.parent_item &&
-			this->handle_item == oth.handle_item)
+			this->handle_item == oth.handle_item &&
+			this->plus        == oth.plus)
 			return TRUE;
 		else
 			return FALSE;
 	}
 
-	bool operator != (const _SELECTED_ITEM_& oth)
+	bool operator != (const SELECTED_ITEM& oth)
 	{
-		if (this->item != oth.item ||
-			this->level != oth.level ||
-			this->part != oth.part ||
+		if (/*this->item != oth.item ||
+			this->level != oth.level ||*/
+			this->part        != oth.part ||
 			this->parent_item != oth.parent_item ||
-			this->handle_item != oth.handle_item)
+			this->handle_item != oth.handle_item ||
+			this->plus        != oth.plus)
 			return TRUE;
 		else
 			return FALSE;
@@ -54,60 +64,39 @@ public:
 
 } SELECTED_ITEM;
 
-typedef struct _FOLDER_ITEM_
+class CFolderItem
 {
+public:
 	HANDLE    hHandle;
-	WORD      nLevel = 0;
-	HANDLE    hParent = NULL;
-	HWND      hWndParent = NULL;
-	LONG_PTR  move_index = -1;
-	LPCTSTR   lpszPath{};
-	BOOL      bCollapsed = FALSE;
-	BOOL      bSelected = FALSE;
-	BOOL      bHiden = FALSE;
-	BOOL      bLocked = FALSE;
-	UINT      nColorIndex = 0;
-	std::vector <_FOLDER_ITEM_> children {};
-	LONG      nLastChildSelected = -1;
+	WORD      nLevel;
+	HANDLE    hParent;
+	HWND      hWndParent;
+	LONG_PTR  move_index;
+	LPCTSTR   lpszPath;
+	LPCTSTR   lpszTitle;
+	BOOL      bCollapsed;
+	BOOL      bSelected;
+	BOOL      bHiden;
+	BOOL      bLocked;
+	UINT      nColorIndex;
+	HANDLE    nLastChildSelected;
+	folder_items children;
 
 public:
+	CFolderItem();
+	~CFolderItem();
+
 	BOOL    HasChildren() { return (BOOL)children.size(); };
-	long    GetChildrenHeight() {
-		long lHeight = 0;
-		for (_FOLDER_ITEM_& fi : children)
-			if (!fi.bHiden)
-				lHeight += DEFAULT_ITEM_HEIGHT;
-		return lHeight;
-	};
-	BOOL    IsThereSlectedChild() {
-		for (_FOLDER_ITEM_& fi : children)
-			if (fi.bSelected)
-			{
-				return TRUE;
-			}
-		return FALSE;
-	};
-	void   SelectChildren() {
-		if (HasChildren())
-		{
-			if (nLastChildSelected < 0)
-				nLastChildSelected = 0;
+	long    GetChildrenHeight();
+	HANDLE  IsThereSlectedChild();
+	void    SelectChildren();
+	void    ClearChildrenSelection();
+	BOOL    IsLastChild(CFolderItem* fi);
+	void    GetTitle(std::wstring& title);
 
-			for (size_t t = 0; t < children.size(); t++)
-			{
-				if (nLastChildSelected == t)
-					children.at(t).bSelected = TRUE;
-				else
-					children.at(t).bSelected = FALSE;
-
-				if (children.at(t).HasChildren())
-					children.at(t).SelectChildren();
-			}
-		}
-
-	}
-
-} FOLDER_ITEM;
+	void    DeleteChildren();
+	void    Select();
+};
 
 
 #endif // FOLDERITEM_H_INCLUDED

@@ -47,7 +47,7 @@ void DropData(HWND hwnd, IDataObject* pDataObject, POINTL pt)
         if (pDataObject->GetData(&fmtetc, &stgmed) == S_OK)
         {
             // we asked for the data as a HGLOBAL, so access it appropriately
-            FOLDER_ITEM* pfi = (FOLDER_ITEM * )GlobalLock(stgmed.hGlobal);
+            CFolderItem* pfi = (CFolderItem* )GlobalLock(stgmed.hGlobal);
             if (pfi->hWndParent != NULL && IsWindow(pfi->hWndParent))
                 SendMessage(pfi->hWndParent, LVM_DELETEITEM, pfi->move_index, NULL);
 

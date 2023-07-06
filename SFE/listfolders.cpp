@@ -12,20 +12,25 @@
 
 #define _AFXWIN_INLINE
 
+#define IDM_FOLDER_PROPERTIES   1004
+#define IDM_CONTEXT_RECTAN 1005
+#define IDM_CONTEXT_CIRCLE 1006
+#define IDM_FOLDER_CREATE_GROUP      1007
+
 HGLOBAL CListFolders::CopyItem(LONG nItem)
 {
-    if (nItem < 0)
+    if (nItem < 0 || nItem >= m_root.children.size())
         return NULL;
 
-    FOLDER_ITEM fi = m_items.at(nItem);
-    fi.move_index = nItem;
+    CFolderItem* fi = m_root.children.at(nItem);
+    fi->move_index = nItem;
     SIZE_T size = sizeof(fi);
     HGLOBAL hMem = GlobalAlloc(GHND, size);
 
     if (hMem != NULL)
     {
-        FOLDER_ITEM* pfi = (FOLDER_ITEM*)GlobalLock(hMem);
-        *pfi = fi;
+        CFolderItem* pfi = (CFolderItem*)GlobalLock(hMem);
+        *pfi = *fi;
         GlobalUnlock(hMem);
     }
 
@@ -123,10 +128,28 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
             m_hovered.item = -1;
             m_hovered.part = -1;
             m_hovered.level = 0;
+            m_hovered.handle_item = 0;
+            m_hovered.parent_item = 0;
             m_bLButtonDown = FALSE;
             m_bDraging = FALSE;
 
+            SendMessage(m_hWndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&m_TI);
             InvalidateRect(m_hWnd, NULL, NULL);
+            break;
+        }
+
+        case WM_MOUSEHOVER:
+        {
+            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+            OnMouseHover((UINT)wParam, pt);
+
+            break;
+        }
+
+        case WM_RBUTTONDOWN:
+        {
+            POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+            OnRButtonDown((UINT)wParam, pt);
             break;
         }
 
@@ -198,11 +221,11 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
             // Not valid item - take last
             if (nItemHover < 0)
             {
-                nItemHover = (LONG)m_items.size();
+                nItemHover = (LONG)m_root.children.size();
                 nPartHover = 2;
             }
 
-            FOLDER_ITEM* pfi = (FOLDER_ITEM * )wParam;
+            CFolderItem* pfi = (CFolderItem* )wParam;
 
             // Insert item between others
             if (nPartHover != 1)
@@ -242,6 +265,7 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
 
 CListFolders::CListFolders()
     : m_hWnd(NULL)
+    , m_hWndTT(NULL)
     , m_nWidth(0)
     , m_bLButtonDown(FALSE)
     , m_bDraging(FALSE)
@@ -256,16 +280,19 @@ CListFolders::CListFolders()
     , m_pTFLB(NULL)
     , m_plgbBorder(NULL)
     , m_plgbHover(NULL)
+    , m_plgbSelected(NULL)
     , m_spInlineObjec_TFL(NULL)
     , m_spInlineObjec_TFLB(NULL)
     , m_fScale(1.0f)
     , m_nPosition(1)
-    , m_items()
+    //, m_items()
+    , m_root()
     , m_nVScrollMax(0)
     , m_bMouseTracking(FALSE)
     , m_pointLbuttonDown()
     , pDropTarget(NULL)
     , m_hovered()
+    , m_TI()
 {
 
 }
@@ -282,6 +309,7 @@ CListFolders::~CListFolders()
     SafeRelease(&m_pTFLB);
     SafeRelease(&m_plgbBorder);
     SafeRelease(&m_plgbHover);
+    SafeRelease(&m_plgbSelected);
     SafeRelease(&m_spInlineObjec_TFL);
     SafeRelease(&m_spInlineObjec_TFLB);
 
@@ -355,6 +383,7 @@ HWND CListFolders::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
         //oldListWndProc = (LONG_PTR)SetWindowLongPtr(m_hWnd, GWLP_WNDPROC, (LONG_PTR)ListProcExt);
 
         HRESULT hr = RegisterDropWindow(m_hWnd, &pDropTarget);
+        m_hWndTT = CreateTrackingToolTip(1, m_hWnd, hInstance);
     }
 
     return m_hWnd;
@@ -373,6 +402,7 @@ void CListFolders::DiscardDeviceDependentResources()
     SafeRelease(&m_spInlineObjec_TFLB);
     SafeRelease(&m_plgbBorder);
     SafeRelease(&m_plgbHover);
+    SafeRelease(&m_plgbSelected);
 
     for (ID2D1LinearGradientBrush* pBrush : m_colors_normal)
         SafeRelease(&pBrush);
@@ -455,7 +485,7 @@ HRESULT CListFolders::CreateDeviceDependentResources()
         if (SUCCEEDED(hr))
             hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &m_pBr1);
         if (SUCCEEDED(hr))
-            hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkGray), &m_pBr2);
+            hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &m_pBr2);
         if (SUCCEEDED(hr))
             hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), &m_pBrRed);
 
@@ -473,13 +503,17 @@ HRESULT CListFolders::CreateDeviceDependentResources()
         if (gsc2 != NULL)
             m_pRenderTarget->CreateLinearGradientBrush(lgbp, gsc2, &m_plgbBorder);
 
-        //gpt2[0].color = D2D1::ColorF(RGB(255, 255, 0));
-        //gpt2[1].color = D2D1::ColorF(RGB(127, 96, 0));
         gpt2[0].color = D2D1::ColorF(RGB(21, 21, 255));
         gpt2[1].color = D2D1::ColorF(RGB(0, 0, 96));
         m_pRenderTarget->CreateGradientStopCollection(&gpt2[0], ARRAYSIZE(gpt2), &gsc2);
         if (gsc2 != NULL)
             m_pRenderTarget->CreateLinearGradientBrush(lgbp, gsc2, &m_plgbHover);
+
+        gpt2[0].color = D2D1::ColorF(RGB(255, 255, 21));
+        gpt2[1].color = D2D1::ColorF(RGB(127, 96, 0));
+        m_pRenderTarget->CreateGradientStopCollection(&gpt2[0], ARRAYSIZE(gpt2), &gsc2);
+        if (gsc2 != NULL)
+            m_pRenderTarget->CreateLinearGradientBrush(lgbp, gsc2, &m_plgbSelected);
 
         //----------------------------------------------------------------
         // Scale
@@ -520,7 +554,7 @@ void CListFolders::OnSize(UINT nType, UINT nWidth, UINT nHeight)
 
         ListView_SetColumnWidth(m_hWnd, 0, LVSCW_AUTOSIZE_USEHEADER);
     }
-    if (m_items.size() > 0)
+    if (m_root.children.size() > 0)
         ResetScrollBar();
 }
 
@@ -571,12 +605,12 @@ void CListFolders::DrawItems(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect)
     static D2D1_POINT_2F ptMark0{};
     static D2D1_POINT_2F ptMark1{};
 
-    for (size_t t = lTop; t < m_items.size(); t++)
+    for (size_t t = lTop; t < m_root.children.size(); t++)
     {
         if (rc.top > rect.bottom)
             break;
 
-        DrawItem(pRT, rect, rc, m_items, t, ptMark0, ptMark1);
+        DrawItem(pRT, rect, rc, m_root.children, t, ptMark0, ptMark1);
     }
 
     if (m_bDraging && m_hovered.part != HOVER_PART::HP_MIDDLE)
@@ -586,19 +620,19 @@ void CListFolders::DrawItems(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect)
     }
 }
 
-void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_RECT_F& rc, std::vector <FOLDER_ITEM> m_items, SIZE_T nItem, D2D1_POINT_2F& ptMark0, D2D1_POINT_2F& ptMark1, UINT nLevel)
+void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_RECT_F& rc, folder_items items, SIZE_T nItem, D2D1_POINT_2F& ptMark0, D2D1_POINT_2F& ptMark1, UINT nLevel)
 {
     D2D1_POINT_2F pt0{};
     D2D1_POINT_2F pt1{};
 
-    FOLDER_ITEM& fi = m_items.at(nItem);
+    CFolderItem* fi = items.at(nItem);
 
     // Fill
     ID2D1LinearGradientBrush* pBrush{ NULL };
-    if (fi.bSelected)
-        pBrush = m_colors_pressed.at(fi.nColorIndex);
+    if (fi->bSelected)
+        pBrush = m_colors_pressed.at(fi->nColorIndex);
     else
-        pBrush = m_colors_normal.at(fi.nColorIndex);
+        pBrush = m_colors_normal.at(fi->nColorIndex);
 
     pt0 = { 1000.0f, rc.top };
     pt1 = { 1000.0f, rc.bottom };
@@ -607,7 +641,7 @@ void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_
 
     // Background
     D2D1_RECT_F rcBorder{ rc };
-    rcBorder.left += nLevel * 16;
+    rcBorder.left += nLevel * 12;
     pRT->FillRectangle(&rcBorder, pBrush);
 
     // Border ----------------------------------------------------------------------
@@ -640,37 +674,178 @@ void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_
     }
 
     // Left mark ----------------------------------------------------------------------
+    DrawItem_LeftMark(pRT, fi, rcBorder);
+
+    // Right mark ----------------------------------------------------------------------
+    DrawItem_RightMark(pRT, fi, rcBorder);
+
+    // Text ----------------------------------------------------------------------
+    DrawItem_Text(pRT, fi, rcBorder, rc, nLevel);
+
+    // -----------------------------------------------------------------------
+    // Prepare for next item
+    rc.top = rc.bottom;
+    rc.bottom = rc.top + DEFAULT_ITEM_HEIGHT;
+
+    // Children ----------------------------------------------------------------------
+    if (fi->HasChildren() && !fi->bCollapsed)
+    {
+        for (size_t t = 0; t < fi->children.size(); t++)
+        {
+            if (rc.top > rect.bottom)
+                break;
+
+            DrawItem(pRT, rect, rc, fi->children, t, ptMark0, ptMark1, nLevel + 1);
+        }
+    }
+
+}
+
+void CListFolders::DrawItem_Text(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder, D2D1_RECT_F& rc, UINT nLevel)
+{
+    D2D1_RECT_F rflock{ rcBorder };
+    rflock.top += 4;
+    rflock.bottom -= 4;
+    rflock.left += 5;
+    rflock.right = rflock.left + 10;
+
+    D2D1_RECT_F rflockO{ rflock };
+    rflockO.left += 0.5f;
+    rflockO.right = rflockO.left + 8.0f;
+    rflockO.top += 0.5f;
+    rflockO.bottom += 0.5f;
+
+
+    std::wstring wch{};
+
+    //Collapsed mark
+    if (fi->HasChildren())
+    {
+        if (fi->bCollapsed)
+            wch = L"+";
+        else
+            wch = L"–"; //━
+    }
+    else
+        wch += L" ";
+
+    if (m_hovered.handle_item == fi && m_hovered.plus && fi->HasChildren())
+    {
+        pRT->DrawText(wch.c_str(), (UINT32)wch.length(), m_pTFL, rflockO, m_pBr1);
+        pRT->DrawRectangle(rflockO, m_pBr1);
+    }
+
+    pRT->DrawText(wch.c_str(), (UINT32)wch.length(), m_pTFL, rflock, m_pBr1);
+
+    //Locked mark
+    rflock.left += 8;
+    rflock.right = rflock.left + 10;
+    if (fi->bLocked)
+        wch = L"∗";
+    else
+        wch = L" ";
+
+    pRT->DrawText(wch.c_str(), (UINT32)wch.length(), m_pTFL, rflock, m_pBr1);
+
+    D2D1_RECT_F rft{ rc };
+    rft.top += 1;
+    rft.bottom -= 1;
+    rft.left += 21;
+    rft.right -= 2;
+
+    if (fi->hParent != &m_root)
+    {
+        D2D1_POINT_2F pt0{ rc.left + 6, rc.top };
+        D2D1_POINT_2F pt1{ rc.left + 6, rc.bottom };
+
+        CFolderItem* pfi = (CFolderItem*)fi->hParent;
+        if (pfi->IsLastChild(fi))
+        {
+            pt1.y -= (rc.bottom - rc.top) / 2;
+            pRT->DrawLine(pt0, pt1, m_pBr1);
+
+            pt0 = pt1;
+            pt1.x = rc.left + 12;
+
+            pRT->DrawLine(pt0, pt1, m_pBr1);
+        }
+        else
+        {
+            pRT->DrawLine(pt0, pt1, m_pBr1);
+
+            pt0.y += (rc.bottom - rc.top) / 2;
+            pt1 = pt0;
+            pt1.x = rc.left + 12;
+            pRT->DrawLine(pt0, pt1, m_pBr1);
+        }
+    }
+
+
+    rft.left += nLevel * 12;
+    IDWriteTextFormat* pDWTF = m_pTFL;
+    if (fi->bSelected)
+    {
+        rft.left += 1;
+        pDWTF = m_pTFLB;
+    }
+    pRT->DrawText(fi->lpszPath, lstrlen(fi->lpszPath), pDWTF, rft, m_pBr1);
+}
+
+void CListFolders::DrawItem_LeftMark(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder)
+{
     D2D1_RECT_F rfl{ rcBorder };
     rfl.left += 0.5f;
     rfl.right = rfl.left + 3.5f;
-    rfl.bottom += 1.0f;
+    rfl.bottom -= 1.0f;
 
-    pt0 = { rfl.left, rfl.top };
-    pt1 = { rfl.left + (rfl.right - rfl.left) / 2, rfl.bottom };
+    D2D1_POINT_2F pt0{ rfl.left, rfl.top };
+    D2D1_POINT_2F pt1{ rfl.left + (rfl.right - rfl.left) / 2, rfl.bottom };
+
     m_plgbBorder->SetStartPoint(pt0);
     m_plgbBorder->SetEndPoint(pt1);
     m_plgbHover->SetStartPoint(pt0);
     m_plgbHover->SetEndPoint(pt1);
+    m_plgbSelected->SetStartPoint(pt0);
+    m_plgbSelected->SetEndPoint(pt1);
 
     if (m_bDraging)
     {
-        if (m_hovered.part == 1 && nItem == m_hovered.item)
-            pRT->FillRectangle(&rfl, m_plgbHover);
-        else
-            pRT->FillRectangle(&rfl, m_plgbBorder);
+        //if (m_hovered.part == 1 && nItem == m_hovered.item)
+        //    pRT->FillRectangle(&rfl, m_plgbHover);
+        //else
+        //    pRT->FillRectangle(&rfl, m_plgbBorder);
     }
     else
     {
-        if (nItem == m_hovered.item && m_hovered.level == nLevel)
+        if (m_hovered.handle_item == fi->hHandle)
+        {
             pRT->FillRectangle(&rfl, m_plgbHover);
+            //wchar_t text_buffer[200] = { 0 }; //temporary buffer
+            //swprintf(text_buffer, _countof(text_buffer), L"%I64x: Level: %d\n", (unsigned long long)m_hovered.handle_item, m_hovered.level); // convert
+            //OutputDebugString(text_buffer);
+        }
         else
-            pRT->FillRectangle(&rfl, m_plgbBorder);
+        {
+            if (fi->bSelected)
+            {
+                pRT->FillRectangle(&rfl, m_plgbSelected);
+            }
+            else
+                pRT->FillRectangle(&rfl, m_plgbBorder);
+        }
     }
 
-    // Right mark ----------------------------------------------------------------------
+}
+
+void CListFolders::DrawItem_RightMark(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder)
+{
     D2D1_RECT_F rfr{ rcBorder };
     rfr.left = rcBorder.right - 4.0f;
     rfr.right = rfr.left + 4.0f;
+    rfr.bottom -= 1.0f;
+
+    D2D1_POINT_2F pt0{ rfr.left, rfr.top };
+    D2D1_POINT_2F pt1{ rfr.left + (rfr.right - rfr.left) / 2, rfr.bottom };
 
     pt0 = { rfr.left, rfr.top };
     pt1 = { rfr.left + (rfr.right - rfr.left) / 2, rfr.bottom };
@@ -679,124 +854,69 @@ void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_
     m_plgbBorder->SetEndPoint(pt1);
     m_plgbHover->SetStartPoint(pt0);
     m_plgbHover->SetEndPoint(pt1);
+    m_plgbSelected->SetStartPoint(pt0);
+    m_plgbSelected->SetEndPoint(pt1);
 
     if (m_bDraging)
     {
-        if (m_hovered.part == 1 && nItem == m_hovered.item)
+        //if (m_hovered.handle_item == fi->hHandle)
+        //    pRT->FillRectangle(&rfr, m_plgbHover);
+        //else
+        //    pRT->FillRectangle(&rfr, m_plgbBorder);
+    }
+    else
+    {
+        //if (nItem == m_hovered.item && m_hovered.level == nLevel && m_hovered.handle_item == fi.hHandle)
+        if (m_hovered.handle_item == fi->hHandle)
             pRT->FillRectangle(&rfr, m_plgbHover);
         else
-            pRT->FillRectangle(&rfr, m_plgbBorder);
-    }
-    else
-    {
-        if (nItem == m_hovered.item && m_hovered.level == nLevel)
-            pRT->FillRectangle(&rfr, m_plgbHover);
-        else
-            pRT->FillRectangle(&rfr, m_plgbBorder);
-    }
-
-    // Text ----------------------------------------------------------------------
-    D2D1_RECT_F rflock{ rcBorder };
-    rflock.top += 4;
-    rflock.bottom -= 4;
-    rflock.left += 5;
-    rflock.right = rflock.left + 10;
-
-    std::wstring wch{};
-
-    //Collapsed mark
-    if (fi.HasChildren())
-    {
-        if (fi.bCollapsed)
-            wch = L"+";
-        else
-            wch = L"━";
-    }
-    else
-        wch += L" ";
-    pRT->DrawText(wch.c_str(), (UINT32)wch.length(), m_pTFL, rflock, m_pBr1);
-
-    //Cocked mark
-    rflock.left += 8;
-    rflock.right = rflock.left + 10;
-    if (fi.bLocked)
-        wch = L"∗";
-    else
-        wch = L" ";
-    pRT->DrawText(wch.c_str(), (UINT32)wch.length(), m_pTFL, rflock, m_pBr1);
-
-    D2D1_RECT_F rft{ rc };
-    rft.top += 1;
-    rft.bottom -= 1;
-    rft.left += 21;
-    rft.right -= 2;
-    IDWriteTextFormat* pDWTF = m_pTFL;
-    if (fi.bSelected)
-    {
-        rft.left += 1;
-        pDWTF = m_pTFLB;
-    }
-    pRT->DrawText(fi.lpszPath, lstrlen(fi.lpszPath), pDWTF, rft, m_pBr1);
-
-    // -----------------------------------------------------------------------
-    rc.top = rc.bottom;
-    rc.bottom = rc.top + DEFAULT_ITEM_HEIGHT;
-
-    // Children ----------------------------------------------------------------------
-    if (fi.HasChildren() && !fi.bCollapsed)
-    {
-        for (size_t t = 0; t < fi.children.size(); t++)
         {
-            if (rc.top > rect.bottom)
-                break;
-
-            DrawItem(pRT, rect, rc, fi.children, t, ptMark0, ptMark1, nLevel + 1);
+            if (fi->bSelected)
+            {
+                pRT->FillRectangle(&rfr, m_plgbSelected);
+            }
+            else
+                pRT->FillRectangle(&rfr, m_plgbBorder);
         }
     }
-
 }
 
 HANDLE CListFolders::AddFolder(LPCTSTR lpszText, HANDLE hParent)
 {
-    FOLDER_ITEM fi{};
-    fi.hParent = hParent;
+    CFolderItem* fi = new CFolderItem();
 
     if (hParent != NULL)
     {
-        FOLDER_ITEM *pfi = (FOLDER_ITEM*)hParent;
-        fi.hWndParent = m_hWnd;
-        fi.lpszPath = lpszText;
-        fi.move_index = -1;
-        fi.nColorIndex = 0;
-        fi.nLevel = pfi->nLevel + 1;
+        CFolderItem* pfi = (CFolderItem*)hParent;
+        fi->hWndParent = m_hWnd;
+        fi->lpszPath = lpszText;
+        fi->move_index = -1;
+        fi->nColorIndex = 0;
+        fi->nLevel = pfi->nLevel + 1;
+        fi->hHandle = fi;
+        fi->hParent = hParent;
         pfi->children.push_back(fi);
-
-        FOLDER_ITEM& nfi = pfi->children.at(pfi->children.size() - 1);
-        nfi.hHandle = &nfi;
-        ResetScrollBar();
-        return fi.hHandle;
     }
     else
     {
-        fi.nLevel = 0;
-        fi.hWndParent = m_hWnd;
-        fi.lpszPath = lpszText;
-        fi.move_index = -1;
-        fi.nColorIndex = 0;
-        m_items.push_back(fi);
-
-
-        FOLDER_ITEM& nfi = m_items.at(m_items.size() - 1);
-        nfi.hHandle = &nfi;
-        ResetScrollBar();
-        return nfi.hHandle;
+        fi->nLevel = 0;
+        fi->hWndParent = m_hWnd;
+        fi->lpszPath = lpszText;
+        fi->move_index = -1;
+        fi->nColorIndex = 0;
+        fi->hHandle = fi;
+        fi->hParent = &m_root;
+        m_root.children.push_back(fi);
     }
+
+    ResetScrollBar();
+    return fi->hHandle;
 }
 
-void CListFolders::InsertFolder(FOLDER_ITEM* pfi, size_t at)
+void CListFolders::InsertFolder(CFolderItem* pfi, size_t at)
 {
     pfi->hWndParent = m_hWnd;
-    m_items.insert(m_items.begin() + at, *pfi);
+    m_root.children.insert(m_root.children.begin() + at, pfi);
     //pfi->lParent = (LONG_PTR)&m_items.at(at);
     ResetScrollBar();
     m_bDraging = FALSE;
@@ -807,25 +927,25 @@ void CListFolders::RemoveFolder(size_t at)
     if (at < 0)
         return;
 
-    m_items.erase(m_items.begin() + at);
+    m_root.children.erase(m_root.children.begin() + at);
     ResetScrollBar();
     m_bDraging = FALSE;
 }
 
 long CListFolders::GetVirtualHeight()
 {
-    if (m_items.size() < 1)
+    if (m_root.children.size() < 1)
         return 0;
 
     long lVirtualHeight = 0;
-    size_t count = m_items.size();
+    size_t count = m_root.children.size();
 
-    for (FOLDER_ITEM & fi : m_items)
+    for (CFolderItem * fi : m_root.children)
     {
          lVirtualHeight += DEFAULT_ITEM_HEIGHT;
 
-        if (!fi.bCollapsed)
-            lVirtualHeight += fi.GetChildrenHeight();
+        if (!fi->bCollapsed)
+            lVirtualHeight += fi->GetChildrenHeight();
     }
 
     return lVirtualHeight;
@@ -833,14 +953,14 @@ long CListFolders::GetVirtualHeight()
 
 long CListFolders::GetTopItem()
 {
-    if (m_items.size() < 1)
+    if (m_root.children.size() < 1)
         return LONG_MIN;
 
     int nVertScroll = GetScrollPos32(SB_VERT); // GetScrollPos(m_hWnd, SB_VERT);
 
     int nTop = 0;
     int nItem = 0;
-    while (nTop < nVertScroll && nItem < m_items.size())
+    while (nTop < nVertScroll && nItem < m_root.children.size())
     {
         nTop += DEFAULT_ITEM_HEIGHT;
         nItem++;
@@ -888,7 +1008,7 @@ void CListFolders::ResetScrollBar()
     if (!::IsWindow(m_hWnd))
         return;
 
-    if (m_items.size() < 1)
+    if (m_root.children.size() < 1)
         return;
 
     HDC screen = ::GetDC(0);
@@ -945,11 +1065,13 @@ void CListFolders::OnVScroll(UINT nSBCode, UINT nPos, HWND hScroll)
             SetScrollPos32(SB_VERT, scrollPos + DEFAULT_ITEM_HEIGHT);
             break;
         }
+
         case SB_LINEUP:
         {
             SetScrollPos32(SB_VERT, __max(0, scrollPos - DEFAULT_ITEM_HEIGHT));
             break;
         }
+
         case SB_PAGEDOWN:
         {
             if (scrollPos < m_nVScrollMax)
@@ -961,6 +1083,7 @@ void CListFolders::OnVScroll(UINT nSBCode, UINT nPos, HWND hScroll)
             }
             break;
         }
+
         case SB_PAGEUP:
         {
             if (scrollPos > 0)
@@ -972,6 +1095,7 @@ void CListFolders::OnVScroll(UINT nSBCode, UINT nPos, HWND hScroll)
             }
             break;
         }
+
         case SB_TOP:
         {
             if (scrollPos > 0)
@@ -980,6 +1104,7 @@ void CListFolders::OnVScroll(UINT nSBCode, UINT nPos, HWND hScroll)
             }
             break;
         }
+
         case SB_BOTTOM:
         {
             if (scrollPos < m_nVScrollMax)
@@ -988,6 +1113,7 @@ void CListFolders::OnVScroll(UINT nSBCode, UINT nPos, HWND hScroll)
             }
             break;
         }
+
         case SB_THUMBPOSITION:
         case SB_THUMBTRACK: {
             SetScrollPos32(SB_VERT, GetScrollPos32(SB_VERT, TRUE));
@@ -1039,80 +1165,81 @@ void CListFolders::OnMouseWheel(UINT nFlags, short zDelta, POINT pt)
 
 void CListFolders::OnLButtonDown(UINT nFlags, POINT point)
 {
+    BOOL b = FALSE;
     m_pointLbuttonDown = point;
 
     SELECTED_ITEM nSelected = HitTest(point);
 
-    SelectItem(nSelected, m_items);
+    CFolderItem* fi = (CFolderItem * )nSelected.handle_item;
+    if (fi == NULL)
+        return;
+    
+    if (nSelected.plus)
+    {
+        fi->bCollapsed = !fi->bCollapsed;
+        b = TRUE;
+    }
+
+    fi->Select();
+
+    if (b)
+        ResetScrollBar();
 
     InvalidateRect(m_hWnd, NULL, TRUE);
 }
 
-void CListFolders::SelectItem(SELECTED_ITEM selected, std::vector <FOLDER_ITEM>& items)
-{
-    for (size_t t = 0; t < items.size(); t++)
-    {
-        FOLDER_ITEM& fi = items.at(t);
-
-        if (t == selected.item && selected.level == fi.nLevel && selected.handle_item == fi.hHandle)
-        {
-            fi.bSelected = TRUE;
-            if (fi.HasChildren())
-            {
-                if (!fi.IsThereSlectedChild())
-                {
-                    if (fi.nLastChildSelected >= 0)
-                        fi.children.at(fi.nLastChildSelected).bSelected = TRUE;
-                    else
-                    {
-                        fi.children.at(0).bSelected = TRUE;
-                        fi.nLastChildSelected = 0;
-                    }
-                }
-            }
-
-            if (fi.hParent != NULL)
-            {
-                FOLDER_ITEM* pfi = (FOLDER_ITEM*)fi.hParent;
-                pfi->nLastChildSelected = (LONG)t;
-            }
-        }
-        else
-        {
-            fi.bSelected = FALSE;
-            if (fi.HasChildren())
-            {
-                SelectItem(selected, fi.children);
-            }
-            if (fi.IsThereSlectedChild())
-            {
-                fi.bSelected = TRUE;
-            }
-        }
-    }
-
-}
-
 void CListFolders::OnLButtonDblClk(UINT nFlags, POINT point)
 {
+    BOOL b = FALSE;
     SELECTED_ITEM nSelected = HitTest(point);
-    LONG nItem = nSelected.item;
-    if (nItem < 0)
+
+    CFolderItem* fi = (CFolderItem*)nSelected.handle_item;
+    if (fi == NULL)
         return;
 
-    FOLDER_ITEM& fi = m_items.at(nItem);
-    if (fi.HasChildren())
+    if (fi->HasChildren())
     {
-        fi.bCollapsed = !fi.bCollapsed;
-
-        for (FOLDER_ITEM& cfi : fi.children)
-        {
-            cfi.bHiden = fi.bCollapsed;
-        }
-
-        ResetScrollBar();
-        InvalidateRect(m_hWnd, NULL, TRUE);
+        fi->bCollapsed = !fi->bCollapsed;
+        b = TRUE;
     }
+
+    fi->Select();
+
+    if (b)
+        ResetScrollBar();
+
+    InvalidateRect(m_hWnd, NULL, TRUE);
+}
+
+void CListFolders::OnRButtonDown(UINT nFlags, POINT point)
+{
+    SELECTED_ITEM nSelected = HitTest(point);
+
+    CFolderItem* fi = (CFolderItem*)nSelected.handle_item;
+    if (fi != NULL)
+    {
+        OnLButtonDown(nFlags, point);
+    }
+
+    POINT pt = point;
+    HMENU hMenuPopup = CreatePopupMenu();
+    DWORD dw = MF_STRING;
+    if (fi == NULL)
+    {
+        dw |= MF_DISABLED | MF_GRAYED;
+    }
+    AppendMenu(hMenuPopup, dw, IDM_FOLDER_PROPERTIES, L"Properties ...");
+    AppendMenu(hMenuPopup, dw, IDM_CONTEXT_RECTAN, L"Rectangle");
+    AppendMenu(hMenuPopup, dw, IDM_CONTEXT_CIRCLE, L"Circle");
+    AppendMenu(hMenuPopup, MF_SEPARATOR, 0, NULL);
+
+    AppendMenu(hMenuPopup, MF_STRING, IDM_FOLDER_CREATE_GROUP, L"Create folder group ...");
+
+    ClientToScreen(m_hWnd, &pt);
+    TrackPopupMenu(hMenuPopup,
+        TPM_LEFTALIGN | TPM_RIGHTBUTTON,
+        pt.x, pt.y, 0, m_hWnd, NULL);
+    DestroyMenu(hMenuPopup);
 }
 
 void CListFolders::OnMouseMove(UINT nFlags, POINT point)
@@ -1121,8 +1248,9 @@ void CListFolders::OnMouseMove(UINT nFlags, POINT point)
     {
         TRACKMOUSEEVENT tme;
         tme.cbSize = sizeof(TRACKMOUSEEVENT);
-        tme.dwFlags = TME_LEAVE;
+        tme.dwFlags = TME_LEAVE | TME_HOVER;
         tme.hwndTrack = m_hWnd;
+        tme.dwHoverTime = 250; //HOVER_DEFAULT; 
         TrackMouseEvent(&tme);
         m_bMouseTracking = TRUE;
     }
@@ -1192,13 +1320,77 @@ void CListFolders::OnMouseMove(UINT nFlags, POINT point)
         }
     }
 
-    //if (nItemHover != m_nLastItemHover ||
-    //    nPartHover != m_nLastPartHover && m_bDraging)
     if (siHovered != m_hovered)
     {
         m_hovered = siHovered;
         InvalidateRect(m_hWnd, NULL, TRUE);
+        SendMessage(m_hWndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&m_TI);
+
+        TRACKMOUSEEVENT tme;
+        tme.cbSize = sizeof(TRACKMOUSEEVENT);
+        tme.dwFlags = TME_LEAVE | TME_HOVER;
+        tme.hwndTrack = m_hWnd;
+        tme.dwHoverTime = 250; //HOVER_DEFAULT; 
+        TrackMouseEvent(&tme);
     }
+}
+
+void CListFolders::OnMouseHover(UINT nFlags, POINT pt)
+{
+    SendMessage(m_hWndTT, TTM_GETTOOLINFO, 0, (LPARAM)&m_TI);
+    TCHAR txt[4096];
+    m_TI.lpszText = txt;
+
+    // Tooltip title
+    std::wstring title{};
+    ((CFolderItem*)m_hovered.handle_item)->GetTitle(title);
+    SendMessage(m_hWndTT, TTM_SETTITLE, TTI_NONE, (LPARAM)title.c_str());
+
+    // Tooltip text
+    std::wstring tttext{};
+    if (((CFolderItem*)m_hovered.handle_item)->HasChildren())
+    {
+        HANDLE hChild = ((CFolderItem*)m_hovered.handle_item)->IsThereSlectedChild();
+        if (hChild == NULL)
+        {
+            hChild = ((CFolderItem*)m_hovered.handle_item)->children.at(0);
+        }
+        swprintf_s(txt, ARRAYSIZE(txt), L"%ls", ((CFolderItem*)hChild)->lpszPath);
+    }
+    else
+    {
+        swprintf_s(txt, ARRAYSIZE(txt), L"%ls", ((CFolderItem*)m_hovered.handle_item)->lpszPath);
+    }
+    m_TI.lpszText = txt;
+    SendMessage(m_hWndTT, TTM_SETTOOLINFO, 0, (LPARAM)&m_TI);
+    SendMessage(m_hWndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&m_TI);
+
+    //TCHAR theme[20];
+    //swprintf_s(theme, ARRAYSIZE(theme), L"%ls", L"Explorer");
+    //SendMessage(m_hWndTT, TTM_SETWINDOWTHEME, 0, (LPARAM)theme);
+
+    LRESULT l = SendMessage(m_hWndTT, TTM_GETBUBBLESIZE, 0, (LPARAM)&m_TI);
+    int h = HIWORD(l);
+    int w = LOWORD(l);
+
+    pt.x += (LONG)m_fScale * 2;
+    pt.y += (DEFAULT_ITEM_HEIGHT)+2;
+
+    ClientToScreen(m_hWnd, &pt);
+
+    RECT parent_rect{};
+    GetWindowRect(GetParent(m_hWnd), &parent_rect);
+    if (SendMessage(GetParent(m_hWnd), WM_PANE_FOLDER, 1, 0) == 1)
+    {
+        if (pt.x + w > parent_rect.right)
+            pt.x = parent_rect.right - w;
+    }
+    else
+    {
+        if (pt.x + w > parent_rect.right)
+            pt.x = parent_rect.left;
+    }
+    SendMessage(m_hWndTT, TTM_TRACKPOSITION, 0, (LPARAM)MAKELONG(pt.x, pt.y));
 }
 
 UINT CListFolders::AddColor(ID2D1HwndRenderTarget* pRT, COLORREF color)
@@ -1274,29 +1466,29 @@ SELECTED_ITEM CListFolders::HitTest(POINT point)
     float fOffset = 0.0f;
 
     long top = GetTopItem();
-    for (size_t t = 0; t < m_items.size(); t++)
+    for (size_t t = top; t < m_root.children.size(); t++)
     {
-        FOLDER_ITEM& fi = m_items.at(t);
-        if (t >= top)
+        CFolderItem* fi = m_root.children.at(t);
+
+        HiTestItem((LONG)t, m_root.children, fOffset, fpt, si);
+        if (si.item >= 0)
         {
-            HiTestItem((LONG)t, m_items, fOffset, fpt, si);
-            if (si.item >= 0)
-                return si;
+            return si;
         }
     }
     return si;
 }
 
-void CListFolders::HiTestItem(long nItem, std::vector <FOLDER_ITEM> m_items, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM& si, WORD nLevel)
+void CListFolders::HiTestItem(long nItem, folder_items &items, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM& si, WORD nLevel)
 {
-    FOLDER_ITEM& fi = m_items.at(nItem);
+    CFolderItem* fi = items.at(nItem);
 
     if (fpt.y >= fOffset && fpt.y <= fOffset + DEFAULT_ITEM_HEIGHT)
     {
         if (fpt.y >= fOffset && fpt.y <= fOffset + DEFAULT_ITEM_HEIGHT / 4.0f)
         {
-            si.handle_item = fi.hHandle;
-            si.parent_item = fi.hParent;
+            si.handle_item = fi->hHandle;
+            si.parent_item = fi->hParent;
             si.level = nLevel;
             si.part = 0;
             si.item = (LONG)nItem;
@@ -1305,18 +1497,23 @@ void CListFolders::HiTestItem(long nItem, std::vector <FOLDER_ITEM> m_items, flo
 
         if (fpt.y >= fOffset + DEFAULT_ITEM_HEIGHT / 4.0f && fpt.y <= fOffset + DEFAULT_ITEM_HEIGHT * 3 / 4.0f)
         {
-            si.handle_item = fi.hHandle;
-            si.parent_item = fi.hParent;
+            si.handle_item = fi->hHandle;
+            si.parent_item = fi->hParent;
             si.level = nLevel;
             si.item = (LONG)nItem;
             si.part = 1;
+
+            if (fpt.x > 4 && fpt.x < 12)
+                si.plus = TRUE;
+            else
+                si.plus = FALSE;
             return;
         }
 
         if (fpt.y >= fOffset + DEFAULT_ITEM_HEIGHT * 3 / 4.0f && fpt.y <= fOffset + DEFAULT_ITEM_HEIGHT)
         {
-            si.handle_item = fi.hHandle;
-            si.parent_item = fi.hParent;
+            si.handle_item = fi->hHandle;
+            si.parent_item = fi->hParent;
             si.level = nLevel;
             si.item = (LONG)nItem;
             si.part = 2;
@@ -1326,11 +1523,11 @@ void CListFolders::HiTestItem(long nItem, std::vector <FOLDER_ITEM> m_items, flo
     fOffset += DEFAULT_ITEM_HEIGHT;
 
 
-    if (fi.HasChildren() && !fi.bCollapsed)
+    if (fi->HasChildren() && !fi->bCollapsed)
     {
-        for (size_t t = 0; t < fi.children.size(); t++)
+        for (size_t t = 0; t < fi->children.size(); t++)
         {
-            HiTestItem((LONG)t, fi.children, fOffset, fpt, si, nLevel + 1);
+            HiTestItem((LONG)t, fi->children, fOffset, fpt, si, nLevel + 1);
             if (si.item >= 0)
                 return;
         }
@@ -1342,10 +1539,41 @@ void CListFolders::GetSelectedItems(std::vector<size_t>& selected)
     selected.clear();
 
     size_t i = 0;
-    for (FOLDER_ITEM& fi : m_items)
+    for (CFolderItem* fi : m_root.children)
     {
-        if (fi.bSelected)
+        if (fi->bSelected)
             selected.push_back(i);
         i++;
     }
+}
+
+HWND CListFolders::CreateTrackingToolTip(int toolID, HWND hWndParent, HINSTANCE hInst)
+{
+    // Create a tooltip.
+    HWND h = CreateWindowEx(WS_EX_TOPMOST, TOOLTIPS_CLASS, NULL,
+        WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+        hWndParent, NULL, hInst, NULL);
+
+    if (!h)
+    {
+        return NULL;
+    }
+
+    // Set up the tool information. In this case, the "tool" is the entire parent window.
+    memset(&m_TI, 0, sizeof(TOOLINFO));
+    m_TI.cbSize = sizeof(TOOLINFO);
+    m_TI.uFlags = TTF_IDISHWND | TTF_TRACK | TTF_ABSOLUTE | TTF_TRANSPARENT | TTF_SUBCLASS;
+    m_TI.hwnd = hWndParent;
+    m_TI.hinst = hInst;
+    m_TI.lpszText = NULL; //LPSTR_TEXTCALLBACK
+    m_TI.uId = (UINT_PTR)hWndParent;
+
+    GetClientRect(hWndParent, &m_TI.rect);
+
+    // Associate the tooltip with the tool window.
+    if (!SendMessage(h, TTM_ADDTOOL, 0, (LPARAM)(LPTOOLINFO)&m_TI))
+        return NULL;
+
+    return h;
 }

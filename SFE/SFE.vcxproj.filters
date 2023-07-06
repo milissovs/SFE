@@ -60,6 +60,9 @@
     <ClCompile Include="drag_drop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="folder_item.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mainframe.h">

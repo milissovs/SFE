@@ -67,6 +67,7 @@ protected:
 	ID2D1SolidColorBrush* m_pBrBlack;
 	ID2D1SolidColorBrush* m_pBrBorder;
 	ID2D1SolidColorBrush* m_pBrFill;
+	ID2D1SolidColorBrush* m_pBrFill2;
 
 protected:
 	ID2D1Factory*          m_pDirect2dFactory;

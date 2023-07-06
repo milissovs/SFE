@@ -27,10 +27,12 @@ public:
 	void OnMouseWheel(UINT nFlags, short zDelta, POINT pt);
 	void OnLButtonDown(UINT nFlags, POINT point);
 	void OnLButtonDblClk(UINT nFlags, POINT point);
+	void OnRButtonDown(UINT nFlags, POINT point);
 	void OnMouseMove(UINT nFlags, POINT point);
+	void OnMouseHover(UINT nFlags, POINT point);
 
 	HANDLE AddFolder(LPCTSTR lpszText, HANDLE lParent = NULL);
-	void InsertFolder(FOLDER_ITEM* pfi, size_t at);
+	void InsertFolder(CFolderItem* pfi, size_t at);
 	void RemoveFolder(size_t at);
 
 	void GetSelectedItems(std::vector<size_t>& selected);
@@ -42,11 +44,14 @@ public:
 	void ResetScrollBar();
 	UINT AddColor(ID2D1HwndRenderTarget* pRT, COLORREF color);
 	SELECTED_ITEM HitTest(POINT point);
-	void          HiTestItem(long nItem, std::vector <FOLDER_ITEM> items, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM &si, WORD nLevel = 0);
+	void          HiTestItem(long nItem, folder_items &items, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM &si, WORD nLevel = 0);
 	HGLOBAL       CopyItem(LONG nItem);
-	void          SelectItem(SELECTED_ITEM item, std::vector <FOLDER_ITEM>& items);
+
+	HWND CreateTrackingToolTip(int toolID, HWND hWndParent, HINSTANCE hInst);
 
 	HWND m_hWnd;
+	HWND m_hWndTT;
+
 	int  m_nWidth;
 	BOOL m_bLButtonDown;
 	BOOL m_bDraging;
@@ -54,14 +59,9 @@ public:
 
 	float m_fScale;
 	int   m_nPosition;
-	//long  m_nLastItemHover;
-	//WORD  m_nLastPartHover;
-	//WORD  m_nLastLevelHover;
 	BOOL  m_bMouseTracking;
 	POINT m_pointLbuttonDown;
 	SELECTED_ITEM m_hovered;
-
-	//LONG_PTR oldListWndProc;
 
 private:
 	ID2D1Factory*             m_pDirect2dFactory;
@@ -76,7 +76,7 @@ private:
 	IDWriteInlineObject*      m_spInlineObjec_TFLB;
 	ID2D1LinearGradientBrush* m_plgbBorder;
 	ID2D1LinearGradientBrush* m_plgbHover;
-
+	ID2D1LinearGradientBrush* m_plgbSelected;
 
 	std::vector<ID2D1LinearGradientBrush*> m_colors_normal;
 	std::vector<ID2D1LinearGradientBrush*> m_colors_pressed;
@@ -90,15 +90,20 @@ private:
 
 	HRESULT OnPaint2D();
 	void    DrawItems(ID2D1HwndRenderTarget *pRT, D2D1_RECT_F & rect);
-	void    DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_RECT_F& rc, std::vector <FOLDER_ITEM> m_items, SIZE_T nItem, D2D1_POINT_2F &ptMark0, D2D1_POINT_2F &ptMark1, UINT nLevel = 0);
+	void    DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_RECT_F& rc, folder_items items, SIZE_T nItem, D2D1_POINT_2F &ptMark0, D2D1_POINT_2F &ptMark1, UINT nLevel = 0);
+	void    DrawItem_Text(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder, D2D1_RECT_F& rc, UINT nLevel);
+	void    DrawItem_LeftMark(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder);
+	void    DrawItem_RightMark(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder);
 
 	// Release device-dependent resource.
 	void DiscardDeviceDependentResources();
 
 private:
-	std::vector <FOLDER_ITEM> m_items;
-	int m_nVScrollMax;
+	//folder_items m_items;
+	int          m_nVScrollMax;
 	IDropTarget* pDropTarget;
+	CFolderItem  m_root;
+	TOOLINFO     m_TI;
 };
 
 #endif // LISTFOLDERS_H_INCLUDED

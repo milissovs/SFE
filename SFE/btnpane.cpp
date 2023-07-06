@@ -369,7 +369,7 @@ int CBTNPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
     m_btns[0].SetTooltip(L"Back");
     m_btns[1].SetText(L">"); //🡢🡪🡲🡺🢂
     m_btns[1].SetTooltip(L"Forward");
-    m_btns[2].SetText(L"^"); //🡣🡫🡳🡻🢃
+    m_btns[2].SetText(L"△"); //🡣🡫🡳🡻🢃
     m_btns[2].SetTooltip(L"Up to parent");
     m_btns[1].SetStateDisabled(TRUE);
 

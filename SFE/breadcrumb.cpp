@@ -32,6 +32,7 @@ CBreadCrumb::CBreadCrumb()
     , m_pBrBlack(NULL)
     , m_pBrBorder(NULL)
     , m_pBrFill(NULL)
+    , m_pBrFill2(NULL)
     , m_pDirect2dFactory(NULL)
     , m_pRenderTarget(NULL)
     , m_pDWriteFactory(NULL)
@@ -53,6 +54,7 @@ CBreadCrumb::~CBreadCrumb()
     SafeRelease(&m_pBrBlack);
     SafeRelease(&m_pBrBorder);
     SafeRelease(&m_pBrFill);
+    SafeRelease(&m_pBrFill2);
     ClearVisbleCrumbs();
 }
 
@@ -208,6 +210,7 @@ void CBreadCrumb::DiscardDeviceDependentResources()
     SafeRelease(&m_pBrBlack);
     SafeRelease(&m_pBrBorder);
     SafeRelease(&m_pBrFill);
+    SafeRelease(&m_pBrFill2);
 }
 
 HRESULT CBreadCrumb::CreateDeviceDependentResources()
@@ -242,7 +245,9 @@ HRESULT CBreadCrumb::CreateDeviceDependentResources()
         if (SUCCEEDED(hr))
             hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xCCE8FF), &m_pBrBorder);
         if (SUCCEEDED(hr))
-            hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xE5F3FF), &m_pBrFill);
+            hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x8DBFE7), &m_pBrFill);
+        if (SUCCEEDED(hr))
+            hr = m_pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xE5F3FF), &m_pBrFill2);
 
         m_pRenderTarget->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
         hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(m_pDWriteFactory), reinterpret_cast<IUnknown**>(&m_pDWriteFactory));
@@ -314,23 +319,7 @@ HRESULT CBreadCrumb::OnPaint2D(ID2D1HwndRenderTarget* pRT, HDC hDC)
 {
     D2D1_SIZE_F size = pRT->GetSize();
 
-    //D2D1_POINT_2F p0{ 0, size.height - 0.5f };
-    //D2D1_POINT_2F p1{ size.width, size.height - 0.5f };
-    //pRT->DrawLine(p0, p1, m_pBr1);
-
     BOOL bMark = FALSE;
-    //float fStart = 0.0f;
-    //for (size_t t = 0; t < m_visible_crumbs.size(); t++)
-    //{
-    //    BREAD_CRUMB_ITEM& bci = m_visible_crumbs.at(t);
-    //    if (bci.bInvalidate)
-    //    {
-    //        DrawCrumb(pRT, bci, fStart, size.height);
-    //        bMark = TRUE;
-    //        bci.bInvalidate = FALSE;
-    //    }
-    //    fStart += bci.fWidth;
-    //}
 
     if (!bMark)
     {
@@ -362,13 +351,23 @@ void CBreadCrumb::DrawCrumb(ID2D1HwndRenderTarget* pRT, BREAD_CRUMB_ITEM& bci, f
         D2D1_RECT_F chevron{ frc };
         chevron.left = chevron.right - CHEVRON_WIDTH;
 
-        //if (bci.nHoveredType == 1)
-        //    pRT->FillRectangle(&frc, m_pBrFill);
-        //else
-        //    pRT->FillRectangle(&chevron, m_pBrFill);
+        if (bci.nHoveredType == 1)
+        {
+            pRT->FillRectangle(&frc, m_pBrFill);
+            pRT->DrawRectangle(&frc, m_pBrBorder, 1);
+        }
+        else
+        {
+            pRT->FillRectangle(&frc, m_pBrFill2);
 
-        pRT->FillRectangle(&frc, m_pBrFill);
-        pRT->DrawRectangle(&frc, m_pBrBorder, 1);
+            D2D1_RECT_F crc{ frc };
+
+            crc.left = crc.right - CHEVRON_WIDTH;
+            pRT->FillRectangle(&crc, m_pBrFill);
+
+            pRT->DrawRectangle(&frc, m_pBrBorder, 1);
+        }
+
         if (bci.bHasChevron)
         {
             D2D1_POINT_2F p0{ chevron.left, 5};

@@ -165,6 +165,10 @@ LRESULT  CFolderPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
                 PostMessage(GetParent(m_hWnd), WM_FOLDER_RESIZE, 1, lParam);
                 break;
             }
+            case 1:
+            {
+                return GetPanePosition();
+            }
         }
         break;
     }
@@ -290,12 +294,13 @@ int CFolderPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
     HWND hW = m_wndPaneHeader.Create(hWnd, lpCS->hInstance, &m_wndPaneHeader);
 
     hW = m_wndListFolders.Create(hWnd, lpCS->hInstance, &m_wndListFolders);
+
     m_wndListFolders.AddFolder(TEST_PATH);
     HANDLE addr = m_wndListFolders.AddFolder(L"2");
-    m_wndListFolders.AddFolder(L"12", addr);
-    m_wndListFolders.AddFolder(L"13", addr);
-    m_wndListFolders.AddFolder(L"14", addr);
-    m_wndListFolders.AddFolder(L"15", addr);
+    //m_wndListFolders.AddFolder(L"12", addr);
+    //m_wndListFolders.AddFolder(L"13", addr);
+    //m_wndListFolders.AddFolder(L"14", addr);
+    //m_wndListFolders.AddFolder(L"15", addr);
     m_wndListFolders.AddFolder(L"5");
     m_wndListFolders.AddFolder(L"6");
     m_wndListFolders.AddFolder(L"7");
@@ -327,24 +332,24 @@ int CFolderPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
     //m_wndListFolders.AddFolder(L"33");
     //m_wndListFolders.AddFolder(L"34");
     //m_wndListFolders.AddFolder(L"35");
-    //m_wndListFolders.AddFolder(L"36");
-    //m_wndListFolders.AddFolder(L"37");
-    //m_wndListFolders.AddFolder(L"38");
-    //m_wndListFolders.AddFolder(L"39");
-    //m_wndListFolders.AddFolder(L"40");
-    //m_wndListFolders.AddFolder(L"41");
-    //m_wndListFolders.AddFolder(L"42");
-    //m_wndListFolders.AddFolder(L"43");
-    //m_wndListFolders.AddFolder(L"44");
-    //m_wndListFolders.AddFolder(L"45");
-    //m_wndListFolders.AddFolder(L"46");
-    //m_wndListFolders.AddFolder(L"47");
-    //m_wndListFolders.AddFolder(L"48");
     addr  = m_wndListFolders.AddFolder(L"49");
     m_wndListFolders.AddFolder(L"50", addr);
     m_wndListFolders.AddFolder(L"51", addr);
     m_wndListFolders.AddFolder(L"52", addr);
-    m_wndListFolders.AddFolder(L"53");
+    m_wndListFolders.AddFolder(L"36");
+    m_wndListFolders.AddFolder(L"37");
+    m_wndListFolders.AddFolder(L"38");
+    addr = m_wndListFolders.AddFolder(L"39");
+    m_wndListFolders.AddFolder(L"40", addr);
+    m_wndListFolders.AddFolder(L"41", addr);
+    m_wndListFolders.AddFolder(L"42", addr);
+    m_wndListFolders.AddFolder(L"53", addr);
+    m_wndListFolders.AddFolder(L"43", addr);
+    m_wndListFolders.AddFolder(L"44", addr);
+    m_wndListFolders.AddFolder(L"45", addr);
+    m_wndListFolders.AddFolder(L"46", addr);
+    m_wndListFolders.AddFolder(L"47", addr);
+    m_wndListFolders.AddFolder(L"48", addr);
 
     return 1;
 }
