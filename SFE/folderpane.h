@@ -4,7 +4,6 @@
 #include <commctrl.h>
 #include <d2d1.h>
 #include "paneheader.h"
-#include "treefolders.h"
 #include "listfolders.h"
 #include <string>
 
@@ -38,7 +37,6 @@ public:
 	BOOL m_bLButtonDown;
 
 	CPaneHeader  m_wndPaneHeader;
-	//CTreeFolders m_wndTreeForlders;
 	CListFolders m_wndListFolders;
 
 private:

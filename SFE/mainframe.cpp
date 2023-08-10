@@ -6,6 +6,50 @@
 #include <atltypes.h>
 //#include <atlbase.h>
 #include <atlstr.h>
+//#include <shellapi.h>
+
+void TrayDrawIcon(HINSTANCE hInst, HWND hWnd)
+{
+    NOTIFYICONDATA nid;
+    nid.cbSize = sizeof(NOTIFYICONDATA);
+    nid.hWnd = hWnd;
+    nid.uID = 100;
+    nid.uCallbackMessage = WM_TRAYMESSAGE;
+    nid.uVersion = NOTIFYICON_VERSION;
+    nid.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDR_MAINFRAME));
+    memcpy(nid.szTip, L"SFE\0", 8);
+    //LoadString(hInst, IDS_APP_TITLE, nid.szTip, 128);
+    nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    Shell_NotifyIcon(NIM_ADD, &nid);
+}
+void TrayDeleteIcon(HWND hWnd)
+{
+    NOTIFYICONDATA nid;
+    nid.cbSize = sizeof(NOTIFYICONDATA);
+    nid.hWnd = hWnd;
+    nid.uID = 100;
+    Shell_NotifyIcon(NIM_DELETE, &nid);
+}
+void TrayLoadPopupMenu(HINSTANCE hInst, HWND hWnd)
+{
+    POINT cursor;
+    GetCursorPos(&cursor);
+
+    HMENU hMenuPopup = CreatePopupMenu();
+    DWORD dw = MF_STRING;
+
+    AppendMenu(hMenuPopup, dw, IDM_TRAY_SHOW, L"Restore");
+    AppendMenu(hMenuPopup, dw, IDM_TRAY_EXIT, L"Exit App");
+
+    //ClientToScreen(hWnd, &cursor);
+    TrackPopupMenu(hMenuPopup, TPM_LEFTALIGN | TPM_RIGHTBUTTON, cursor.x, cursor.y, 0, hWnd, NULL);
+    DestroyMenu(hMenuPopup);
+
+    //hMenu = (HMENU)GetSubMenu(LoadMenu(hInst, MAKEINTRESOURCE(IDR_TRAYMENU)), 0);
+    SetMenuDefaultItem(hMenuPopup, IDM_TRAY_SHOW, false);
+    TrackPopupMenu(hMenuPopup, TPM_LEFTALIGN, cursor.x, cursor.y, 0, hWnd, NULL);
+    DestroyMenu(hMenuPopup);
+}
 
 /*  Make the class name into a global variable  */
 TCHAR szClassName[] = TEXT("SFE_App");
@@ -41,82 +85,132 @@ LRESULT  CMainFrame::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPA
 
     switch (message)                  /* handle the messages */
     {
-    case WM_ERASEBKGND:
-        return 1;
+        case WM_ERASEBKGND:
+            return 1;
 
-    case WM_CREATE:
-    {
-        LPCREATESTRUCT lpCS = (LPCREATESTRUCT)lParam;
-        return OnCreate(hWnd, (LPCREATESTRUCT)lParam);
-    }
-
-    case WM_DESTROY:
-    {
-        SendMessage(hWnd, WM_UPDATE_SETTINGS, 0, 0);
-        OnDestroy();
-        PostQuitMessage(0);      /* send a wm_quit to the message queue */
-        break;
-    }
-
-    case WM_SIZE:
-    {
-        UINT width = LOWORD(lParam);
-        UINT height = HIWORD(lParam);
-        OnSize((UINT)wParam, width, height);
-        if (wParam == SIZE_RESTORED ||
-            wParam == SIZE_MAXIMIZED)
-            SendMessage(hWnd, WM_UPDATE_SETTINGS, 0 ,0);
-        break;
-    }
-
-    case WM_GETMINMAXINFO:
-    {
-        float fScale = GetScale(hWnd);
-        MINMAXINFO* mmi = (MINMAXINFO*)lParam;
-        mmi->ptMinTrackSize.x = (int)(480.0f * fScale);
-        mmi->ptMinTrackSize.y = (int)(360.0f * fScale);
-        break;
-    }
-
-    case WM_COMMAND:
-    {
-        WORD id = LOWORD(wParam);
-
-        switch (id)
+        case WM_CREATE:
         {
-            case ID_VIEW_SPLIT_NONE:
-            case ID_VIEW_SPLIT_VERT:
-            case ID_VIEW_SPLIT_HORZ:
-            {
-                SendMessage(m_wndMainView.m_hWnd, message, wParam, lParam);
-                break;
-            }
-            default:
-                return OnCommand(hWnd, wParam, lParam);
+            LPCREATESTRUCT lpCS = (LPCREATESTRUCT)lParam;
+            return OnCreate(hWnd, (LPCREATESTRUCT)lParam);
         }
-        break;
-    }
 
-    case WM_DISPLAYCHANGE:
-    {
-        InvalidateRect(hWnd, NULL, FALSE);
-        break;
-    }
+        case WM_DESTROY:
+        {
+            SendMessage(hWnd, WM_UPDATE_SETTINGS, 0, 0);
+            OnDestroy();
+            PostQuitMessage(0);      /* send a wm_quit to the message queue */
+            break;
+        }
 
-    case WM_UPDATE_SETTINGS:
-    {
-        UpdateSettings();
-        break;
-    }
+        case WM_SIZE:
+        {
+            UINT width = LOWORD(lParam);
+            UINT height = HIWORD(lParam);
+            OnSize((UINT)wParam, width, height);
+            if (wParam == SIZE_RESTORED ||
+                wParam == SIZE_MAXIMIZED)
+                SendMessage(hWnd, WM_UPDATE_SETTINGS, 0 ,0);
+            break;
+        }
 
-    case WM_CLOSE:
-    {
-        DestroyWindow(hWnd);
-        break;
-    }
+        case WM_GETMINMAXINFO:
+        {
+            float fScale = GetScale(hWnd);
+            MINMAXINFO* mmi = (MINMAXINFO*)lParam;
+            mmi->ptMinTrackSize.x = (int)(480.0f * fScale);
+            mmi->ptMinTrackSize.y = (int)(360.0f * fScale);
+            break;
+        }
 
-    default: /* for messages that we don't deal with */
-        return DefWindowProc(hWnd, message, wParam, lParam);
+        case WM_COMMAND:
+        {
+            WORD id = LOWORD(wParam);
+
+            switch (id)
+            {
+                case ID_VIEW_SPLIT_NONE:
+                case ID_VIEW_SPLIT_VERT:
+                case ID_VIEW_SPLIT_HORZ:
+                {
+                    SendMessage(m_wndMainView.m_hWnd, message, wParam, lParam);
+                    break;
+                }
+
+                case ID_FILE_CLOSE:
+                case IDM_TRAY_EXIT:
+                {
+                    TrayDeleteIcon(hWnd);
+                    DestroyWindow(hWnd);
+                    break;
+                }
+
+                case IDM_TRAY_SHOW:
+                {
+                    TrayDeleteIcon(hWnd);
+                    ::ShowWindow(hWnd, SW_SHOW);
+                    ::ShowWindow(hWnd, SW_RESTORE);
+                    break;
+                }
+
+                default:
+                    return OnCommand(hWnd, wParam, lParam);
+            }
+            break;
+        }
+
+        case WM_DISPLAYCHANGE:
+        {
+            InvalidateRect(hWnd, NULL, FALSE);
+            break;
+        }
+
+        case WM_UPDATE_SETTINGS:
+        {
+            UpdateSettings();
+            break;
+        }
+
+        case WM_CLOSE:
+        {
+            if (TO_SYSTEM_TRAY_ON_CLOSE)
+            {
+                
+                ::ShowWindow(hWnd, SW_HIDE);
+                TrayDrawIcon(m_hInstance, hWnd);
+            }
+            else
+            {
+                DestroyWindow(hWnd);
+            }
+            break;
+        }
+
+        case WM_TRAYMESSAGE:
+        {
+            switch (lParam)
+            {
+                case WM_LBUTTONDBLCLK:
+                {
+                    TrayDeleteIcon(hWnd);
+                    ::ShowWindow(hWnd, SW_SHOW);
+                    ::ShowWindow(hWnd, SW_RESTORE);
+                    break;
+                }
+
+                case WM_RBUTTONDOWN:
+                {
+                    TrayLoadPopupMenu(m_hInstance, hWnd);
+                    break;
+                }
+
+                default: /* for messages that we don't deal with */
+                    return DefWindowProc(hWnd, message, wParam, lParam);
+            }
+            break;
+        }
+
+        default: /* for messages that we don't deal with */
+            return DefWindowProc(hWnd, message, wParam, lParam);
     }
 
     return 0;
@@ -393,7 +487,12 @@ int CMainFrame::OnCommand(HWND hWnd, WPARAM wp, LPARAM lp)
 void CMainFrame::OnSize(UINT nType, UINT nWidth, UINT nHeight)
 {
     if (nType == SIZE_MINIMIZED)
+    {
+        ::ShowWindow(m_hWnd, SW_MINIMIZE);
+        ::ShowWindow(m_hWnd, SW_HIDE);
+        TrayDrawIcon(m_hInstance, m_hWnd);
         return;
+    }
 
     CRect rect;
     GetClientRect(m_hWnd, &rect);
@@ -405,9 +504,9 @@ void CMainFrame::OnSize(UINT nType, UINT nWidth, UINT nHeight)
 
     MoveWindow(m_wndMainView.m_hWnd, rect.left, rect.top + nH, rect.right - rect.left, rect.bottom - rect.top, TRUE);
 
-    wchar_t text_buffer[1024] = { 0 };
-    swprintf(text_buffer, _countof(text_buffer), L"Toolbar H: %d\n", nH);
-    OutputDebugString(text_buffer);
+    //wchar_t text_buffer[1024] = { 0 };
+    //swprintf(text_buffer, _countof(text_buffer), L"Toolbar H: %d\n", nH);
+    //OutputDebugString(text_buffer);
 
 
     InvalidateRect(m_hWnd, NULL, TRUE);

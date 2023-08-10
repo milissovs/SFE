@@ -1,6 +1,6 @@
 #include <windows.h>
 #include <windowsx.h>
-#include <wingdi.h>
+//#include <wingdi.h>
 #include "globals.h"
 #include "resource.h"
 #include "splitterwnd.h"

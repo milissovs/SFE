@@ -169,6 +169,17 @@ LRESULT  CFolderPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
             {
                 return GetPanePosition();
             }
+            case WM_PANE_FOLDER_LIST_FOLDERS:
+            {
+                switch (lParam)
+                {
+                    case WM_PANE_FOLDER_LIST_FOLDERS_GET_SELECTED:
+                        return (LRESULT)(m_wndListFolders.m_selected.handle_item);
+
+                    case WM_PANE_FOLDER_LIST_FOLDERS_GET_HWND:
+                        return (LRESULT)m_wndListFolders.m_hWnd;
+                }
+            }
         }
         break;
     }
@@ -332,24 +343,30 @@ int CFolderPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
     //m_wndListFolders.AddFolder(L"33");
     //m_wndListFolders.AddFolder(L"34");
     //m_wndListFolders.AddFolder(L"35");
-    addr  = m_wndListFolders.AddFolder(L"49");
-    m_wndListFolders.AddFolder(L"50", addr);
+    addr  = m_wndListFolders.AddFolder(L"50");
+
     m_wndListFolders.AddFolder(L"51", addr);
     m_wndListFolders.AddFolder(L"52", addr);
-    m_wndListFolders.AddFolder(L"36");
-    m_wndListFolders.AddFolder(L"37");
-    m_wndListFolders.AddFolder(L"38");
-    addr = m_wndListFolders.AddFolder(L"39");
-    m_wndListFolders.AddFolder(L"40", addr);
-    m_wndListFolders.AddFolder(L"41", addr);
-    m_wndListFolders.AddFolder(L"42", addr);
     m_wndListFolders.AddFolder(L"53", addr);
-    m_wndListFolders.AddFolder(L"43", addr);
-    m_wndListFolders.AddFolder(L"44", addr);
-    m_wndListFolders.AddFolder(L"45", addr);
-    m_wndListFolders.AddFolder(L"46", addr);
-    m_wndListFolders.AddFolder(L"47", addr);
-    m_wndListFolders.AddFolder(L"48", addr);
+    m_wndListFolders.AddFolder(L"54", addr);
+    m_wndListFolders.AddFolder(L"55", addr);
+    m_wndListFolders.AddFolder(L"56", addr);
+
+    m_wndListFolders.AddFolder(L"60");
+    m_wndListFolders.AddFolder(L"61");
+    m_wndListFolders.AddFolder(L"62");
+
+    addr = m_wndListFolders.AddFolder(L"70");
+    m_wndListFolders.AddFolder(L"71", addr);
+    m_wndListFolders.AddFolder(L"72", addr);
+    m_wndListFolders.AddFolder(L"73", addr);
+    m_wndListFolders.AddFolder(L"74", addr);
+    m_wndListFolders.AddFolder(L"75", addr);
+    m_wndListFolders.AddFolder(L"74", addr);
+    m_wndListFolders.AddFolder(L"77", addr);
+    m_wndListFolders.AddFolder(L"78", addr);
+    m_wndListFolders.AddFolder(L"79", addr);
+    m_wndListFolders.SetSelectedItem((CFolderItem*)m_wndListFolders.GetFirstItem());
 
     return 1;
 }

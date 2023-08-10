@@ -1,5 +1,5 @@
 #include "drag_drop.h"
-#include <shlobj_core.h>
+//#include <shlobj_core.h>
 
 //--------------------------------------------------------------------------
 //                         EXAMPLE
@@ -64,15 +64,16 @@ void DropData(HWND hwnd, IDataObject* pDataObject, POINTL pt)
 
 HRESULT RegisterDropWindow(HWND hwnd, IDropTarget** ppDropTarget)
 {
-    CDropTarget* pDropTarget = new CDropTarget(hwnd);
+    HRESULT hr = S_OK;
+    //CDropTarget* pDropTarget = new CDropTarget(hwnd);
 
-    // acquire a strong lock
-    HRESULT hr = CoLockObjectExternal(pDropTarget, TRUE, FALSE);
+    //// acquire a strong lock
+    //hr = CoLockObjectExternal(pDropTarget, TRUE, FALSE);
 
-    // tell OLE that the window is a drop target
-    RegisterDragDrop(hwnd, pDropTarget);
+    //// tell OLE that the window is a drop target
+    //RegisterDragDrop(hwnd, pDropTarget);
 
-    *ppDropTarget = pDropTarget;
+    //*ppDropTarget = pDropTarget;
 
     return hr;
 }

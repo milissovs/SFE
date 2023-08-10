@@ -4,7 +4,7 @@
 #include <commctrl.h>
 #include <d2d1.h>
 #include <dwrite.h>
-#include <uxtheme.h>
+//#include <uxtheme.h>
 #include "btnpane.h"
 #include "breadcrumb.h"
 

@@ -3,7 +3,7 @@
 #include "tpane.h"
 #include "globals.h"
 #include "resource.h"
-#include <vsstyle.h>
+//#include <vsstyle.h>
 
 TCHAR m_szTPaneClassName[] = TEXT("TPANE");
 

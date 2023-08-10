@@ -1,38 +1,89 @@
-﻿#include "resource.h"
+#pragma code_page(65001)
 
-//this will set your .exe icon
-IDR_MAINFRAME ICON MOVEABLE PURE LOADONCALL DISCARDABLE "./resources/mainframe.ico"
+#include <windows.h>
+#include "resource.h"
 
-IDB_TILESET   BITMAP                  "./resources/list.bmp"
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "./resources/mainframe.ico"
+IDI_SETTINGS            ICON                    "./resources/settings.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_TILESET             BITMAP                  "./resources/list.bmp"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
 
 IDR_MAINMENU MENU
 BEGIN
-	POPUP "&File"
-	BEGIN
-		MENUITEM "&New\tCtrl+N",			ID_FILE_NEW
-		MENUITEM "&Open...\tCtrl+O",		ID_FILE_OPEN
-		MENUITEM "&Save\tCtrl+S",			ID_FILE_SAVE, GRAYED
-		MENUITEM "&Save As...",				ID_FILE_SAVE_AS, GRAYED
-		MENUITEM SEPARATOR
-		MENUITEM "&Close\tCtrl+F4",			ID_FILE_CLOSE, GRAYED
-		MENUITEM "&Close All",				ID_FILE_CLOSEALL, GRAYED
-		MENUITEM SEPARATOR
-		MENUITEM "E&xit",					ID_FILE_EXIT
-	END
-	POPUP "&View"
-	BEGIN
-		MENUITEM "&Split None",				ID_VIEW_SPLIT_NONE
-		MENUITEM "&Split	—",		ID_VIEW_SPLIT_VERT
-		MENUITEM "&Split	 |",		ID_VIEW_SPLIT_HORZ
-	END
-	POPUP "&Window" GRAYED
-	BEGIN
-		MENUITEM "&Tile\tShift+F5",			ID_WINDOW_TILE_VERT
-		MENUITEM "&Cascade\tShift+F4",		ID_WINDOW_CASCADE
-		MENUITEM "Arrange &Icons",			ID_WINDOW_ARRANGE
-	END
-	POPUP "&Help"
-	BEGIN
-		MENUITEM "&About",					ID_APP_ABOUT
-	END
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O",            ID_FILE_OPEN
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE, GRAYED
+        MENUITEM "&Save As...",                 ID_FILE_SAVE_AS, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "&Close\tCtrl+F4",             ID_FILE_CLOSE, GRAYED
+        MENUITEM "&Close All",                  ID_FILE_CLOSEALL, GRAYED
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_FILE_CLOSE
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "&Split None",                 ID_VIEW_SPLIT_NONE
+        MENUITEM "&Split        —",             ID_VIEW_SPLIT_VERT
+        MENUITEM "&Split         |",            ID_VIEW_SPLIT_HORZ
+    END
+    POPUP "&Window", GRAYED
+    BEGIN
+        MENUITEM "&Tile\tShift+F5",             ID_WINDOW_TILE_VERT
+        MENUITEM "&Cascade\tShift+F4",          ID_WINDOW_CASCADE
+        MENUITEM "Arrange &Icons",              ID_WINDOW_ARRANGE
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About",                      ID_APP_ABOUT
+    END
 END
+
+IDR_TRAYMENU MENU
+BEGIN
+	MENUITEM "Show",                IDM_TRAY_SHOW
+	MENUITEM "Exit",                IDM_TRAY_EXIT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDR_DLG_FOLDER_PROPERTIES DIALOGEX 0, 0, 154, 136
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION
+CAPTION "Folder properties"
+FONT 11, "Segoe", 0, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "&OK",IDOK,19,118,50,14
+    PUSHBUTTON      "&Cancel",IDCANCEL,86,118,50,14
+    CONTROL         "Force title as:",IDR_CHECK_TITLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,8,52,10
+    EDITTEXT        IDR_EDIT_TITLE,60,6,91,14,ES_AUTOHSCROLL | ES_WANTRETURN | NOT WS_BORDER
+    GROUPBOX        "Tab color",IDC_STATIC,3,27,148,87
+    PUSHBUTTON      "Background color",IDR_COLOR_PICK_BG,9,90,62,15
+    PUSHBUTTON      "Text color",IDR_COLOR_PICK_TX,85,90,62,15
+    LTEXT           "Static",IDR_SAMPLE,10,40,135,42
+END
+
+// END resource.rc

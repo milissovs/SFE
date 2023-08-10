@@ -2,14 +2,43 @@
 // Microsoft Visual C++ generated include file.
 // Used by resource.rc
 //
+#define IDC_STATIC				       -1
+
 #define IDR_MAINFRAME                   1
 #define IDR_SPLITTER                    2
 #define IDR_MAINMENU					3
 #define IDR_MDIFRAME                    4
+#define IDR_TRAYMENU                    5
+#define IDR_DLG_FOLDER_PROPERTIES       10
 #define IDM_NEW                         101
 #define IDM_OPEN                        102
 #define IDM_SAVE                        103
 #define IDB_TILESET                     201
+#define IDI_SETTINGS                    202
+
+#define IDR_EDIT_TITLE                  301
+#define IDR_CHECK_TITLE                 302
+#define IDR_COLOR_PICK_BG               303
+#define IDR_COLOR_PICK_TX               304
+#define IDR_SAMPLE                      305
+
+#define ID_VIEW_SPLIT_NONE              501
+#define ID_VIEW_SPLIT_VERT              502
+#define ID_VIEW_SPLIT_HORZ              503
+
+
+
+#define IDM_CONTEXT_LINE                1000
+#define IDM_CONTEXT_RECTAN              1001
+#define IDM_CONTEXT_CIRCLE              1002
+#define IDM_MOVE_PANE                   1003
+#define IDM_FOLDER_PROPERTIES           1004
+#define IDM_FOLDER_ADD                  1005
+#define IDM_FOLDER_REMOVE               1006
+#define IDM_FOLDER_CREATE_GROUP         1007
+#define IDM_TRAY_SHOW                   1008
+#define IDM_TRAY_EXIT                   1009
+
 #define ID_FILE_NEW                     0xE100
 #define ID_FILE_OPEN                    0xE101
 #define ID_FILE_CLOSE                   0xE102
@@ -52,9 +81,6 @@
 
 #define ID_MDI_FIRSTCHILD               0xC350
 
-#define ID_VIEW_SPLIT_NONE                    501
-#define ID_VIEW_SPLIT_VERT                    502
-#define ID_VIEW_SPLIT_HORZ                    503
 
 // Next default values for new objects
 // 

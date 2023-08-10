@@ -116,6 +116,9 @@
     <ClInclude Include="folder_item.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="colorpick.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc">
@@ -124,6 +127,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\mainframe.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\list.bmp">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

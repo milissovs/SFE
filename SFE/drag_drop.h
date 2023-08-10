@@ -1,7 +1,7 @@
 #ifndef DRAGDROP_H_INCLUDED
 #define DRAGDROP_H_INCLUDED
 
-#include <oleidl.h>
+//#include <oleidl.h>
 #include "globals.h"
 #include "folder_item.h"
 

@@ -1,15 +1,17 @@
 
 //#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
-#include <iostream> 
+//#include <stdlib.h>
+//#include <crtdbg.h>
+//#include <iostream> 
 
 #include <windows.h>
 #include <tchar.h>
 #include <commctrl.h>
 #include <winuser.h>
+#include "resource.h"
 #include "mainframe.h"
 #include "globals.h"
+//#include "vld.h"
 
 int WINAPI wWinMain(
     _In_     HINSTANCE hInstance,
@@ -17,6 +19,20 @@ int WINAPI wWinMain(
     _In_     LPWSTR    lpCmdLine,
     _In_     int       nCmdShow)
 {
+
+    HANDLE hMutex = CreateMutexA(NULL, FALSE, "Simple File Explorer!");
+    if (hMutex != 0)
+    {
+        DWORD dwMutexWaitResult = WaitForSingleObject(hMutex, 0);
+        if (dwMutexWaitResult != WAIT_OBJECT_0)
+        {
+            MessageBox(HWND_DESKTOP, TEXT("SFE is already running"), TEXT("Information"), MB_OK | MB_ICONINFORMATION);
+            CloseHandle(hMutex);
+            return 1;
+        }
+    }
+    else
+        return 1;
 
     // Initialise common controls.
     INITCOMMONCONTROLSEX icc{};
@@ -57,7 +73,9 @@ int WINAPI wWinMain(
     OleUninitialize();
 
     //_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
-    _CrtDumpMemoryLeaks();
+    //_CrtDumpMemoryLeaks();
 
+    if (hMutex != NULL)
+        CloseHandle(hMutex);
     return iRes;
 }

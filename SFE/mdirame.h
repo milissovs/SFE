@@ -1,7 +1,7 @@
 #ifndef MDIFRAME_H_INCLUDED
 #define MDIFRAME_H_INCLUDED
 
-#include "treefolders.h"
+//#include "treefolders.h"
 #include "listview.h"
 #include "tpane.h"
 #include "folderpane.h"

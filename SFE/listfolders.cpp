@@ -7,15 +7,51 @@
 #include "listfolders.h"
 #include "globals.h"
 #include "resource.h"
-#include "shlwapi.h"
-//#include "dddd.h"
+//#include "shlwapi.h"
+#include "colorpick.h"
 
 #define _AFXWIN_INLINE
 
-#define IDM_FOLDER_PROPERTIES   1004
-#define IDM_CONTEXT_RECTAN 1005
-#define IDM_CONTEXT_CIRCLE 1006
-#define IDM_FOLDER_CREATE_GROUP      1007
+//#define IDM_CONTEXT_RECTAN 1005
+//#define IDM_CONTEXT_CIRCLE 1006
+
+struct TaskDialogData
+{
+    int X;
+    int Y;
+};
+
+static HRESULT CALLBACK TaskDialogCallback(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, LONG_PTR lpRefData)
+{
+    if (msg == TDN_DIALOG_CONSTRUCTED) // or TDN_CREATED, either one works
+    {
+        TaskDialogData* data = (TaskDialogData*)lpRefData;
+        //SetWindowPos(hwnd, NULL, data->X, data->Y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    }
+    return S_OK;
+}
+
+int MessageBoxPos(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType, int X, int Y)
+{
+    TaskDialogData data = {X, Y};
+
+    TASKDIALOGCONFIG config = {};
+    config.cbSize = sizeof(config);
+    config.hwndParent = hWnd;
+    config.pszWindowTitle = lpCaption;
+    config.pszContent = lpText;
+    // configure other settings as desired, based on uType...
+    config.dwFlags = TDF_POSITION_RELATIVE_TO_WINDOW | TDF_ENABLE_HYPERLINKS;
+    config.pszMainIcon = (PCWSTR)IDI_QUESTION;
+    config.dwCommonButtons = TDCBF_YES_BUTTON | TDCBF_NO_BUTTON;
+    config.pfCallback = &TaskDialogCallback;
+    config.lpCallbackData = (LONG_PTR)&data;
+    config.nDefaultButton = IDYES;
+
+    int button = 0;
+    TaskDialogIndirect(&config, &button, NULL, NULL);
+    return button;
+}
 
 HGLOBAL CListFolders::CopyItem(LONG nItem)
 {
@@ -38,6 +74,202 @@ HGLOBAL CListFolders::CopyItem(LONG nItem)
 };
 
 TCHAR m_szListFolderClassName[] = TEXT("LISTFOLDER");
+
+COLORREF g_back;
+COLORREF g_text;
+
+LRESULT CALLBACK BtnBackgroundProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+    switch (Message)
+    {
+        case WM_ERASEBKGND:
+        {
+            HDC hDC = (HDC)wParam;
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+            HBRUSH hBrush = CreateSolidBrush(g_back);
+            FillRect(hDC, &rc, hBrush);
+
+            return TRUE;
+        }
+
+        case WM_PAINT:
+        {
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+
+            LOGFONT lf{};
+            memset(&lf, 0, sizeof(LOGFONT));
+            lf.lfHeight = -MulDiv(20, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+
+            HFONT font = CreateFontIndirect(&lf);
+            HFONT hFont = (HFONT)SelectObject(hdc, font);
+
+            SetTextColor(hdc, g_text);
+            SetBkMode(hdc, TRANSPARENT);
+
+            RECT rdebug(rc);
+            int height = DrawText(hdc, L"Sample Text", (int)wcslen(L"Sample Text"), &rdebug, DT_CENTER | DT_VCENTER | DT_CALCRECT);
+            int th = rc.bottom - rc.top;
+            rc.top = (int)( (th - height) / 2);
+            rc.bottom = rc.top + height;
+
+            DrawText(hdc, L"Sample Text", (int)wcslen(L"Sample Text"), &rc, DT_CENTER | DT_VCENTER);
+
+            SelectObject(hdc, hFont);
+            EndPaint(hwnd, &ps);
+        }
+
+        default:
+            return DefWindowProc(hwnd, Message, wParam, lParam);
+    }
+    return 0;
+}
+
+LRESULT  CALLBACK PropertiesDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+    static DLG_LRESULT_INIT * pdlg_res {NULL};
+
+    switch (Message)
+    {
+        case WM_INITDIALOG:
+        {
+            pdlg_res = (DLG_LRESULT_INIT*)lParam;
+
+            // Title
+            HWND hEditTitle = GetDlgItem(hwnd, IDR_EDIT_TITLE);
+            INT_PTR lStyle = GetWindowLongPtr(hEditTitle, GWL_STYLE);
+            lStyle |= WS_BORDER;
+            SetWindowLongPtr(hEditTitle, GWL_STYLE, lStyle);
+
+            if (pdlg_res != NULL)
+            {
+                if (pdlg_res->sTitle.length() > 0)
+                {
+                    EnableWindow(hEditTitle, TRUE);
+                    SetDlgItemText(hwnd, IDR_EDIT_TITLE, pdlg_res->sTitle.c_str());
+                    CheckDlgButton(hwnd, IDR_CHECK_TITLE, BST_CHECKED);
+                }
+                else
+                {
+                    EnableWindow(hEditTitle, FALSE);
+                    CheckDlgButton(hwnd, IDR_CHECK_TITLE, BST_UNCHECKED);
+                }
+            }
+
+            if (pdlg_res != NULL)
+            {
+                g_back = pdlg_res->clrBack;
+                g_text = pdlg_res->clrText;
+            }
+
+            // Background button
+            HWND hBtnBckg = GetDlgItem(hwnd, IDR_SAMPLE);
+            SetWindowLongPtr(hBtnBckg, GWLP_WNDPROC, (LONG_PTR)BtnBackgroundProc);
+
+            if (pdlg_res != NULL)
+            {
+                RECT rc{};
+                GetWindowRect(hwnd, &rc);
+                int w = rc.right - rc.left;
+                int h = rc.bottom - rc.top;
+                int x = (int)((pdlg_res->rect.right - pdlg_res->rect.left - w) / 2.0f);
+                int y = (int)((pdlg_res->rect.bottom - pdlg_res->rect.top - h) / 2.0f);
+
+                //POINT tl{x, y};
+                //ClientToScreen(hwnd, &tl);
+
+                MoveWindow(hwnd, pdlg_res->rect.left + x, pdlg_res->rect.top + y, w, h, FALSE);
+            }
+
+            return (LRESULT)TRUE;
+        }
+
+        //case WM
+
+        case WM_COMMAND:
+        {
+            switch (LOWORD(wParam))
+            {
+                case IDOK:
+                {
+                    TCHAR lpString[101] = {};
+                    UINT iChars = GetDlgItemText(hwnd, IDR_EDIT_TITLE, lpString, 101);
+                    pdlg_res->sTitle = lpString;
+
+                    EndDialog(hwnd, IDOK);
+                    break;
+                }
+                case IDCANCEL:
+                {
+                    EndDialog(hwnd, IDCANCEL);
+                    break;
+                }
+                case IDR_CHECK_TITLE:
+                {
+                    HWND hEditTitle = GetDlgItem(hwnd, IDR_EDIT_TITLE);
+                    if (IsDlgButtonChecked(hwnd, IDR_CHECK_TITLE) == BST_UNCHECKED)
+                    {
+                        EnableWindow(hEditTitle, FALSE);
+                    }
+                    else
+                    {
+                        EnableWindow(hEditTitle, TRUE);
+                        SetFocus(hEditTitle);
+                    }
+                    break;
+                }
+                case IDR_COLOR_PICK_BG:
+                {
+                    COLORPICK p;
+                    D2D1_COLOR_F c1 = {
+                        GetRValue(g_back) / 255.0f,
+                        GetGValue(g_back) / 255.0f,
+                        GetBValue(g_back) / 255.0f,
+                        1.0f};
+                    HRESULT hr = (HRESULT)p.Show(hwnd, c1);
+                    if (hr == S_OK)
+                    {
+                        pdlg_res->clrBack = RGB(
+                            (int)(c1.r * 255),
+                            (int)(c1.g * 255),
+                            (int)(c1.b * 255));
+                        g_back = pdlg_res->clrBack;
+                        InvalidateRect(hwnd, NULL, NULL);
+                    }
+                    break;
+                }
+                case IDR_COLOR_PICK_TX:
+                {
+                    COLORPICK p;
+                    D2D1_COLOR_F c1 = {
+                        GetRValue(g_text) / 255.0f,
+                        GetGValue(g_text) / 255.0f,
+                        GetBValue(g_text) / 255.0f, 1.0f };
+                    HRESULT hr = (HRESULT)p.Show(hwnd, c1);
+                    if (hr == S_OK)
+                    {
+                        pdlg_res->clrText = RGB(
+                            (int)(c1.r * 255),
+                            (int)(c1.g * 255),
+                            (int)(c1.b * 255));
+                        g_text = pdlg_res->clrText;
+                        InvalidateRect(hwnd, NULL, NULL);
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+
+        default:
+            return FALSE;
+    }
+    return FALSE;
+}
 
 LRESULT CALLBACK ListProcExt(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
@@ -125,7 +357,6 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
         {
             //SendMessage(m_hWndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&toolTipInfo);
             m_bMouseTracking = FALSE;
-            m_hovered.item = -1;
             m_hovered.part = -1;
             m_hovered.level = 0;
             m_hovered.handle_item = 0;
@@ -176,7 +407,6 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
                 m_bDraging = TRUE;
                 POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
                 SELECTED_ITEM nHover = HitTest(pt);
-                LONG nItemHover = nHover.item;
                 WORD nPartHover = nHover.part;
                 WORD nLevelHover = nHover.level;
 
@@ -201,7 +431,6 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
             else
             {
                 m_bDraging = FALSE;
-                m_hovered.item = -1;
                 m_hovered.part = HOVER_PART::HP_INVALID;
                 InvalidateRect(m_hWnd, NULL, TRUE);
             }
@@ -214,37 +443,36 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
             POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
             ScreenToClient(m_hWnd, &pt);
             SELECTED_ITEM nHover = HitTest(pt);
-            LONG nItemHover = nHover.item;
             WORD nPartHover = nHover.part;
             WORD nLevelHover = nHover.level;
 
-            // Not valid item - take last
-            if (nItemHover < 0)
-            {
-                nItemHover = (LONG)m_root.children.size();
-                nPartHover = 2;
-            }
+            //// Not valid item - take last
+            //if (nItemHover < 0)
+            //{
+            //    nItemHover = (LONG)m_root.children.size();
+            //    nPartHover = 2;
+            //}
 
             CFolderItem* pfi = (CFolderItem* )wParam;
 
-            // Insert item between others
-            if (nPartHover != 1)
-            {
-                // Is same window - moved item has been removed already
-                if (pfi->hWndParent == m_hWnd && pfi->move_index < nItemHover)
-                    nItemHover--;
+            //// Insert item between others
+            //if (nPartHover != 1)
+            //{
+            //    // Is same window - moved item has been removed already
+            //    if (pfi->hWndParent == m_hWnd && pfi->move_index < nItemHover)
+            //        nItemHover--;
 
-                if (nPartHover == 0)
-                    InsertFolder(pfi, nItemHover);
-                if (nPartHover == 2)
-                    InsertFolder(pfi, nItemHover + 1);
-            }
+            //    if (nPartHover == 0)
+            //        InsertFolder(pfi, nItemHover);
+            //    if (nPartHover == 2)
+            //        InsertFolder(pfi, nItemHover + 1);
+            //}
 
-            // Convert item to subitem
-            else
-            {
+            //// Convert item to subitem
+            //else
+            //{
 
-            }
+            //}
 
             InvalidateRect(m_hWnd, NULL, FALSE);
 
@@ -257,6 +485,29 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
             break;
         }
 
+        case WM_COMMAND:
+        {
+            switch (LOWORD(wParam))
+            {
+                case IDM_FOLDER_PROPERTIES: // Show properties for folder item
+                {
+                    OnFolderProperties(hWnd);
+                    m_hWndProperties = NULL;
+                    break;
+                }
+                case IDM_FOLDER_ADD:
+                {
+                    break;
+                }
+                case IDM_FOLDER_REMOVE:
+                {
+                    OnFolderRemove(hWnd);
+                    break;
+                }
+            }
+            break;
+        }
+
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -266,6 +517,8 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
 CListFolders::CListFolders()
     : m_hWnd(NULL)
     , m_hWndTT(NULL)
+    , m_hWndProperties(NULL)
+    , m_hInstance(NULL)
     , m_nWidth(0)
     , m_bLButtonDown(FALSE)
     , m_bDraging(FALSE)
@@ -293,6 +546,10 @@ CListFolders::CListFolders()
     , pDropTarget(NULL)
     , m_hovered()
     , m_TI()
+    , m_dlg_init()
+    , m_selected()
+    , m_colors_back()
+    , m_colors_text()
 {
 
 }
@@ -385,6 +642,8 @@ HWND CListFolders::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
         HRESULT hr = RegisterDropWindow(m_hWnd, &pDropTarget);
         m_hWndTT = CreateTrackingToolTip(1, m_hWnd, hInstance);
     }
+
+    m_hInstance = hInstance;
 
     return m_hWnd;
 }
@@ -525,7 +784,8 @@ HRESULT CListFolders::CreateDeviceDependentResources()
 
         //----------------------------------------------------------------
         // Add default color
-        AddColor(m_pRenderTarget, COLOR_DEFAULT);
+        //AddColor(m_pRenderTarget, COLOR_DEFAULT);
+        m_root.CreateDPColors(m_pRenderTarget);
 
         // Force WM_NCCALCSIZE
         //SetWindowPos(m_hWnd, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED  | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOCOPYBITS);
@@ -552,7 +812,7 @@ void CListFolders::OnSize(UINT nType, UINT nWidth, UINT nHeight)
         m_pRenderTarget->Resize(size);
         InvalidateRect(m_hWnd, NULL, FALSE);
 
-        ListView_SetColumnWidth(m_hWnd, 0, LVSCW_AUTOSIZE_USEHEADER);
+        //ListView_SetColumnWidth(m_hWnd, 0, LVSCW_AUTOSIZE_USEHEADER);
     }
     if (m_root.children.size() > 0)
         ResetScrollBar();
@@ -600,17 +860,15 @@ void CListFolders::DrawItems(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect)
     if (m_bDraging)
         OutputDebugString(L"Paint while drag\n");
 
-    long lTop = GetTopItem();
+    HANDLE hTop = GetTopItem();
 
     static D2D1_POINT_2F ptMark0{};
     static D2D1_POINT_2F ptMark1{};
 
-    for (size_t t = lTop; t < m_root.children.size(); t++)
+    while (hTop)
     {
-        if (rc.top > rect.bottom)
-            break;
-
-        DrawItem(pRT, rect, rc, m_root.children, t, ptMark0, ptMark1);
+        DrawItem(pRT, rect, rc, (CFolderItem*)hTop, ptMark0, ptMark1);
+        hTop = ((CFolderItem*)hTop)->GetNextItem();
     }
 
     if (m_bDraging && m_hovered.part != HOVER_PART::HP_MIDDLE)
@@ -620,19 +878,17 @@ void CListFolders::DrawItems(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect)
     }
 }
 
-void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_RECT_F& rc, folder_items items, SIZE_T nItem, D2D1_POINT_2F& ptMark0, D2D1_POINT_2F& ptMark1, UINT nLevel)
+void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_RECT_F& rc, CFolderItem* pfi, D2D1_POINT_2F& ptMark0, D2D1_POINT_2F& ptMark1)
 {
     D2D1_POINT_2F pt0{};
     D2D1_POINT_2F pt1{};
 
-    CFolderItem* fi = items.at(nItem);
-
     // Fill
     ID2D1LinearGradientBrush* pBrush{ NULL };
-    if (fi->bSelected)
-        pBrush = m_colors_pressed.at(fi->nColorIndex);
+    if (pfi->bSelected)
+        pBrush = pfi->draw_res.lgb_btn_pressed; //m_colors_pressed.at(fi->nColorIndex);
     else
-        pBrush = m_colors_normal.at(fi->nColorIndex);
+        pBrush = pfi->draw_res.lgb_btn_normal; //m_colors_normal.at(fi->nColorIndex);
 
     pt0 = { 1000.0f, rc.top };
     pt1 = { 1000.0f, rc.bottom };
@@ -640,6 +896,7 @@ void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_
     pBrush->SetEndPoint(pt1);
 
     // Background
+    int nLevel = pfi->GetLevel();
     D2D1_RECT_F rcBorder{ rc };
     rcBorder.left += nLevel * 12;
     pRT->FillRectangle(&rcBorder, pBrush);
@@ -649,38 +906,38 @@ void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_
     m_plgbBorder->SetEndPoint(pt1);
     pRT->DrawRectangle(&rcBorder, m_plgbBorder);
 
-    // Drag mark -------------------------------------------------------------------
-    if (m_bDraging && nItem == m_hovered.item && m_hovered.part != 1)
-    {
-        if (m_hovered.part == 0)
-        {
-            ptMark0 = { rc.left, rc.top };
-            ptMark1 = { rc.right, rc.top };
-        }
-        else
-        {
-            ptMark0 = { rc.left, rc.bottom };
-            ptMark1 = { rc.right, rc.bottom };
-        }
+    //// Drag mark -------------------------------------------------------------------
+    //if (m_bDraging && nItem == m_hovered.item && m_hovered.part != 1)
+    //{
+    //    if (m_hovered.part == 0)
+    //    {
+    //        ptMark0 = { rc.left, rc.top };
+    //        ptMark1 = { rc.right, rc.top };
+    //    }
+    //    else
+    //    {
+    //        ptMark0 = { rc.left, rc.bottom };
+    //        ptMark1 = { rc.right, rc.bottom };
+    //    }
 
-        if (ptMark0.y < 1.5f)
-            ptMark0.y = 1.5f;
-        if (ptMark1.y < 1.5f)
-            ptMark1.y = 1.5f;
-        if (ptMark0.y > rect.bottom - 1.5f)
-            ptMark0.y = rect.bottom - 1.5f;
-        if (ptMark1.y > rect.bottom - 1.5f)
-            ptMark1.y = rect.bottom - 1.5f;
-    }
+    //    if (ptMark0.y < 1.5f)
+    //        ptMark0.y = 1.5f;
+    //    if (ptMark1.y < 1.5f)
+    //        ptMark1.y = 1.5f;
+    //    if (ptMark0.y > rect.bottom - 1.5f)
+    //        ptMark0.y = rect.bottom - 1.5f;
+    //    if (ptMark1.y > rect.bottom - 1.5f)
+    //        ptMark1.y = rect.bottom - 1.5f;
+    //}
 
     // Left mark ----------------------------------------------------------------------
-    DrawItem_LeftMark(pRT, fi, rcBorder);
+    DrawItem_LeftMark(pRT, pfi, rcBorder);
 
     // Right mark ----------------------------------------------------------------------
-    DrawItem_RightMark(pRT, fi, rcBorder);
+    DrawItem_RightMark(pRT, pfi, rcBorder);
 
     // Text ----------------------------------------------------------------------
-    DrawItem_Text(pRT, fi, rcBorder, rc, nLevel);
+    DrawItem_Text(pRT, pfi, rcBorder, rc);
 
     // -----------------------------------------------------------------------
     // Prepare for next item
@@ -688,20 +945,20 @@ void CListFolders::DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_
     rc.bottom = rc.top + DEFAULT_ITEM_HEIGHT;
 
     // Children ----------------------------------------------------------------------
-    if (fi->HasChildren() && !fi->bCollapsed)
+    if (pfi->HasChildren() && !pfi->bCollapsed)
     {
-        for (size_t t = 0; t < fi->children.size(); t++)
+        for (size_t t = 0; t < pfi->children.size(); t++)
         {
             if (rc.top > rect.bottom)
                 break;
 
-            DrawItem(pRT, rect, rc, fi->children, t, ptMark0, ptMark1, nLevel + 1);
+            DrawItem(pRT, rect, rc, pfi->children.at(t), ptMark0, ptMark1);
         }
     }
 
 }
 
-void CListFolders::DrawItem_Text(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder, D2D1_RECT_F& rc, UINT nLevel)
+void CListFolders::DrawItem_Text(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder, D2D1_RECT_F& rc)
 {
     D2D1_RECT_F rflock{ rcBorder };
     rflock.top += 4;
@@ -780,7 +1037,7 @@ void CListFolders::DrawItem_Text(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2
         }
     }
 
-
+    int nLevel = fi->GetLevel();
     rft.left += nLevel * 12;
     IDWriteTextFormat* pDWTF = m_pTFL;
     if (fi->bSelected)
@@ -788,7 +1045,13 @@ void CListFolders::DrawItem_Text(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2
         rft.left += 1;
         pDWTF = m_pTFLB;
     }
-    pRT->DrawText(fi->lpszPath, lstrlen(fi->lpszPath), pDWTF, rft, m_pBr1);
+
+    //ID2D1SolidColorBrush* pBrText = m_colors_brtext.at(fi->nColorIndex);
+
+    if (fi->sTitle.length() > 0)
+        pRT->DrawText(fi->sTitle.c_str(), (UINT32)fi->sTitle.length(), pDWTF, rft, fi->draw_res.scb_txt);
+    else
+        pRT->DrawText(fi->sPath.c_str(), (UINT32)fi->sPath.length(), pDWTF, rft, fi->draw_res.scb_txt);
 }
 
 void CListFolders::DrawItem_LeftMark(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder)
@@ -889,23 +1152,43 @@ HANDLE CListFolders::AddFolder(LPCTSTR lpszText, HANDLE hParent)
     {
         CFolderItem* pfi = (CFolderItem*)hParent;
         fi->hWndParent = m_hWnd;
-        fi->lpszPath = lpszText;
+        fi->sPath = lpszText;
         fi->move_index = -1;
         fi->nColorIndex = 0;
-        fi->nLevel = pfi->nLevel + 1;
         fi->hHandle = fi;
         fi->hParent = hParent;
+        fi->nLevel = pfi->nLevel + 1;
+        if (pfi->children.end() != pfi->children.begin())
+        {
+            fi->hPrev = pfi->children.back();
+            ((CFolderItem*)pfi->children.back())->hNext = (HANDLE)fi;
+        }
+        else
+        {
+            fi->hPrev = NULL;
+            fi->hNext = NULL;
+        }
         pfi->children.push_back(fi);
     }
     else
     {
-        fi->nLevel = 0;
         fi->hWndParent = m_hWnd;
-        fi->lpszPath = lpszText;
+        fi->sPath = lpszText;
         fi->move_index = -1;
         fi->nColorIndex = 0;
         fi->hHandle = fi;
         fi->hParent = &m_root;
+        fi->nLevel = m_root.nLevel + 1;
+        if (m_root.children.end() != m_root.children.begin())
+        {
+            fi->hPrev = m_root.children.back();
+            ((CFolderItem*)m_root.children.back())->hNext = (HANDLE)fi;
+        }
+        else
+        {
+            fi->hPrev = NULL;
+            fi->hNext = NULL;
+        }
         m_root.children.push_back(fi);
     }
 
@@ -942,33 +1225,37 @@ long CListFolders::GetVirtualHeight()
 
     for (CFolderItem * fi : m_root.children)
     {
-         lVirtualHeight += DEFAULT_ITEM_HEIGHT;
-
-        if (!fi->bCollapsed)
-            lVirtualHeight += fi->GetChildrenHeight();
+        if (!fi->bHiden)
+        {
+            lVirtualHeight += fi->GetItemHeight();
+        }
     }
+
+    //wchar_t text_buffer[200] = { 0 }; //temporary buffer
+    //swprintf(text_buffer, _countof(text_buffer), L"VirtualHeight: %d\n", (unsigned long)lVirtualHeight); // convert
+    //OutputDebugString(text_buffer);
 
     return lVirtualHeight;
 }
 
-long CListFolders::GetTopItem()
+HANDLE CListFolders::GetTopItem()
 {
     if (m_root.children.size() < 1)
-        return LONG_MIN;
+        return NULL;
 
-    int nVertScroll = GetScrollPos32(SB_VERT); // GetScrollPos(m_hWnd, SB_VERT);
+    int nVertScroll = GetScrollPos32(SB_VERT);
 
     int nTop = 0;
     int nItem = 0;
-    while (nTop < nVertScroll && nItem < m_root.children.size())
+
+    for (CFolderItem* pfi : m_root.children)
     {
-        nTop += DEFAULT_ITEM_HEIGHT;
-        nItem++;
-        // Check expanded items
-        // ....
+        HANDLE hTop = pfi->GetTopItem(nTop, nVertScroll);
+        if (hTop)
+            return hTop;
     }
 
-    return nItem;
+    return NULL;
 }
 
 int  CListFolders::GetScrollPos32(int nBar, BOOL bGetTrackPos /* = FALSE */)
@@ -1018,18 +1305,14 @@ void CListFolders::ResetScrollBar()
 
     RECT rect{};
     GetClientRect(m_hWnd, &rect);
-    if (dpiX > 0)
-    {
-        rect.left = ::MulDiv(rect.left, 96, dpiX);
-        rect.top = ::MulDiv(rect.top, 96, dpiX);
-        rect.right = ::MulDiv(rect.right, 96, dpiX);
-        rect.bottom = ::MulDiv(rect.bottom, 96, dpiX);
-    }
+    float f = dpiX / 96.0f;
 
-    int virtual_height = GetVirtualHeight();
-    int visual_height = rect.bottom - rect.top;
+    int virtual_height = (int)(GetVirtualHeight());
+    int visual_height = (int)((rect.bottom - rect.top) / f);
 
-    //int m_nVScrollMax = 0;
+    int i = (int)floor((float)visual_height / (float)DEFAULT_ITEM_HEIGHT);
+
+    int m_nVScrollMax = 0;
     if (virtual_height > visual_height)
     {
         ::EnableScrollBar(m_hWnd, SB_VERT, TRUE);
@@ -1041,9 +1324,9 @@ void CListFolders::ResetScrollBar()
         m_nVScrollMax = 0;
     }
 
-    SCROLLINFO si;
+    SCROLLINFO si{};
     si.fMask = SIF_PAGE | SIF_RANGE | SIF_DISABLENOSCROLL;
-    si.nPage = (m_nVScrollMax > 0) ? visual_height - 1 : 0;
+    si.nPage = (m_nVScrollMax > 0) ? i * DEFAULT_ITEM_HEIGHT + 1: 0;
     si.nMin = 0;
     si.nMax = m_nVScrollMax;
     SetScrollInfo(m_hWnd, SB_VERT, &si, TRUE);
@@ -1053,7 +1336,10 @@ void CListFolders::OnVScroll(UINT nSBCode, UINT nPos, HWND hScroll)
 {
     int scrollPos = GetScrollPos32(SB_VERT);
 
-    long idTopLeft = GetTopItem();
+    SCROLLINFO si;
+    si.cbSize = sizeof(SCROLLINFO);
+    si.fMask = SIF_POS | SIF_ALL;
+    GetScrollInfo(m_hWnd, SB_VERT, &si);
 
     RECT rect;
     GetClientRect(m_hWnd, &rect);
@@ -1074,11 +1360,11 @@ void CListFolders::OnVScroll(UINT nSBCode, UINT nPos, HWND hScroll)
 
         case SB_PAGEDOWN:
         {
-            if (scrollPos < m_nVScrollMax)
+            if (scrollPos < si.nMax)
             {
                 int offset = ::MulDiv(rect.bottom - rect.top, 96, (int)(96 * m_fScale));
                 int items = (int)(offset / DEFAULT_ITEM_HEIGHT);
-                scrollPos = min(m_nVScrollMax, scrollPos + items * DEFAULT_ITEM_HEIGHT);
+                scrollPos = __min(si.nMax, scrollPos + items * DEFAULT_ITEM_HEIGHT);
                 SetScrollPos32(SB_VERT, scrollPos);
             }
             break;
@@ -1123,12 +1409,6 @@ void CListFolders::OnVScroll(UINT nSBCode, UINT nPos, HWND hScroll)
         default:
             break;
     }
-
-    //POINT point;
-    //GetCursorPos(&point);
-    //ScreenToClient(m_hWnd, &point);
-    //m_cellMouseOver = GetCellFromPt(point);
-    //InvalidateRect(m_hWnd, NULL, FALSE);
 }
 
 void CListFolders::OnMouseWheel(UINT nFlags, short zDelta, POINT pt)
@@ -1168,13 +1448,13 @@ void CListFolders::OnLButtonDown(UINT nFlags, POINT point)
     BOOL b = FALSE;
     m_pointLbuttonDown = point;
 
-    SELECTED_ITEM nSelected = HitTest(point);
+    m_selected = HitTest(point);
 
-    CFolderItem* fi = (CFolderItem * )nSelected.handle_item;
+    CFolderItem* fi = (CFolderItem * )m_selected.handle_item;
     if (fi == NULL)
         return;
     
-    if (nSelected.plus)
+    if (m_selected.plus)
     {
         fi->bCollapsed = !fi->bCollapsed;
         b = TRUE;
@@ -1213,9 +1493,9 @@ void CListFolders::OnLButtonDblClk(UINT nFlags, POINT point)
 
 void CListFolders::OnRButtonDown(UINT nFlags, POINT point)
 {
-    SELECTED_ITEM nSelected = HitTest(point);
+    m_selected = HitTest(point);
 
-    CFolderItem* fi = (CFolderItem*)nSelected.handle_item;
+    CFolderItem* fi = (CFolderItem*)m_selected.handle_item;
     if (fi != NULL)
     {
         OnLButtonDown(nFlags, point);
@@ -1229,16 +1509,28 @@ void CListFolders::OnRButtonDown(UINT nFlags, POINT point)
         dw |= MF_DISABLED | MF_GRAYED;
     }
     AppendMenu(hMenuPopup, dw, IDM_FOLDER_PROPERTIES, L"Properties ...");
-    AppendMenu(hMenuPopup, dw, IDM_CONTEXT_RECTAN, L"Rectangle");
-    AppendMenu(hMenuPopup, dw, IDM_CONTEXT_CIRCLE, L"Circle");
+    AppendMenu(hMenuPopup, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hMenuPopup, MF_STRING, IDM_FOLDER_ADD, L"Add");
+    AppendMenu(hMenuPopup, dw, IDM_FOLDER_REMOVE, L"Remove!");
     AppendMenu(hMenuPopup, MF_SEPARATOR, 0, NULL);
 
-    AppendMenu(hMenuPopup, MF_STRING, IDM_FOLDER_CREATE_GROUP, L"Create folder group ...");
+    AppendMenu(hMenuPopup, MF_STRING, IDM_FOLDER_CREATE_GROUP, L"Create group ...");
+
+    HBITMAP hIcon =  (HBITMAP)LoadImage(m_hInstance, MAKEINTRESOURCE(IDI_SETTINGS), IMAGE_ICON, 16, 16, LR_LOADTRANSPARENT);
+
+    //MENUITEMINFO mii = {};
+    //mii.cbSize = sizeof(MENUITEMINFO);
+    //mii.fMask = MIIM_BITMAP;
+    ////mii.fType = MFT_BITMAP;
+    //mii.hbmpChecked = hIcon;
+    //mii.hbmpUnchecked = hIcon;
+    //mii.hbmpItem = hIcon;
+
+    //SetMenuItemInfo(hMenuPopup, 0, TRUE, &mii);
+    BOOL b = SetMenuItemBitmaps(hMenuPopup, IDM_FOLDER_PROPERTIES, MF_BITMAP | MF_BYPOSITION, hIcon, hIcon);
 
     ClientToScreen(m_hWnd, &pt);
-    TrackPopupMenu(hMenuPopup,
-        TPM_LEFTALIGN | TPM_RIGHTBUTTON,
-        pt.x, pt.y, 0, m_hWnd, NULL);
+    TrackPopupMenu(hMenuPopup, TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, 0, m_hWnd, NULL);
     DestroyMenu(hMenuPopup);
 }
 
@@ -1299,7 +1591,6 @@ void CListFolders::OnMouseMove(UINT nFlags, POINT point)
                 {
                     if (dwEffect & DROPEFFECT_MOVE)
                     {
-                        m_hovered.item = -1;
                         m_hovered.part = HOVER_PART::HP_INVALID;
                     }
                 }
@@ -1337,6 +1628,9 @@ void CListFolders::OnMouseMove(UINT nFlags, POINT point)
 
 void CListFolders::OnMouseHover(UINT nFlags, POINT pt)
 {
+    if (m_hovered.handle_item == NULL)
+        return;
+
     SendMessage(m_hWndTT, TTM_GETTOOLINFO, 0, (LPARAM)&m_TI);
     TCHAR txt[4096];
     m_TI.lpszText = txt;
@@ -1355,11 +1649,11 @@ void CListFolders::OnMouseHover(UINT nFlags, POINT pt)
         {
             hChild = ((CFolderItem*)m_hovered.handle_item)->children.at(0);
         }
-        swprintf_s(txt, ARRAYSIZE(txt), L"%ls", ((CFolderItem*)hChild)->lpszPath);
+        swprintf_s(txt, ARRAYSIZE(txt), L"%ls", ((CFolderItem*)hChild)->sPath.c_str());
     }
     else
     {
-        swprintf_s(txt, ARRAYSIZE(txt), L"%ls", ((CFolderItem*)m_hovered.handle_item)->lpszPath);
+        swprintf_s(txt, ARRAYSIZE(txt), L"%ls", ((CFolderItem*)m_hovered.handle_item)->sPath.c_str());
     }
     m_TI.lpszText = txt;
     SendMessage(m_hWndTT, TTM_SETTOOLINFO, 0, (LPARAM)&m_TI);
@@ -1393,12 +1687,12 @@ void CListFolders::OnMouseHover(UINT nFlags, POINT pt)
     SendMessage(m_hWndTT, TTM_TRACKPOSITION, 0, (LPARAM)MAKELONG(pt.x, pt.y));
 }
 
-UINT CListFolders::AddColor(ID2D1HwndRenderTarget* pRT, COLORREF color)
+UINT CListFolders::AddColor(ID2D1HwndRenderTarget* pRT, COLORREF color, COLORREF tcolor, size_t index)
 {
     if (!pRT)
         return NULL;
 
-    if (color == COLOR_DEFAULT && m_colors_normal.size() > 0) // Ако цвета е по подразбиране
+    if (color == COLOR_DEFAULT && tcolor == 0 && m_colors_normal.size() > 0) // Ако цвета е по подразбиране
         return 0;
 
     WORD wH = 0;
@@ -1437,7 +1731,16 @@ UINT CListFolders::AddColor(ID2D1HwndRenderTarget* pRT, COLORREF color)
     pBrush->SetStartPoint(pt0);
     pBrush->SetEndPoint(pt1);
 
-    m_colors_normal.push_back(pBrush);
+    if (index == 0)
+    {
+        m_colors_normal.push_back(pBrush);
+        m_colors_back.push_back(color);
+    }
+    else
+    {
+        m_colors_normal.at(index) = pBrush;
+        m_colors_back.at(index) = color;
+    }
 
     // ------------------------------------------------------------------------------------------------------------
     gpt4[0].color = D2D1::ColorF(GetRValue(clr2) / 255.0f, GetGValue(clr2) / 255.0f, GetBValue(clr2) / 255.0f);
@@ -1452,7 +1755,25 @@ UINT CListFolders::AddColor(ID2D1HwndRenderTarget* pRT, COLORREF color)
     pBrush->SetStartPoint(pt0);
     pBrush->SetEndPoint(pt1);
 
-    m_colors_pressed.push_back(pBrush);
+    ID2D1SolidColorBrush* pBrText = NULL;
+
+    m_pRenderTarget->CreateSolidColorBrush(
+        D2D1::ColorF(GetRValue(tcolor) / 255.0f,
+                     GetGValue(tcolor) / 255.0f,
+                     GetBValue(tcolor) / 255.0f), &pBrText);
+
+    if (index == 0)
+    {
+        m_colors_pressed.push_back(pBrush);
+        m_colors_text.push_back(tcolor);
+        m_colors_brtext.push_back(pBrText);
+    }
+    else
+    {
+        m_colors_pressed.at(index) = pBrush;
+        m_colors_text.at(index) = tcolor;
+        m_colors_brtext.at(index) = pBrText;
+    }
 
     // ------------------------------------------------------------------------------------------------------------
     return (UINT)m_colors_normal.size() - 1;
@@ -1462,27 +1783,28 @@ SELECTED_ITEM CListFolders::HitTest(POINT point)
 {
     SELECTED_ITEM si{};
 
-    D2D1_POINT_2F fpt{ (float)point.x / m_fScale, (float)point.y / m_fScale };
+    D2D1_POINT_2F fpt =
+    {
+        (float)point.x / m_fScale,
+        (float)point.y / m_fScale
+    };
     float fOffset = 0.0f;
 
-    long top = GetTopItem();
-    for (size_t t = top; t < m_root.children.size(); t++)
+    HANDLE hTop = GetTopItem();
+    while (hTop)
     {
-        CFolderItem* fi = m_root.children.at(t);
-
-        HiTestItem((LONG)t, m_root.children, fOffset, fpt, si);
-        if (si.item >= 0)
-        {
+        HANDLE hRes = HiTestItem((CFolderItem*)hTop, fOffset, fpt, si, 0);
+        if (hRes)
             return si;
-        }
+
+        hTop = ((CFolderItem*)hTop)->GetNextItem();
     }
+
     return si;
 }
 
-void CListFolders::HiTestItem(long nItem, folder_items &items, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM& si, WORD nLevel)
+HANDLE CListFolders::HiTestItem(CFolderItem* fi, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM& si, WORD nLevel)
 {
-    CFolderItem* fi = items.at(nItem);
-
     if (fpt.y >= fOffset && fpt.y <= fOffset + DEFAULT_ITEM_HEIGHT)
     {
         if (fpt.y >= fOffset && fpt.y <= fOffset + DEFAULT_ITEM_HEIGHT / 4.0f)
@@ -1491,8 +1813,7 @@ void CListFolders::HiTestItem(long nItem, folder_items &items, float& fOffset, D
             si.parent_item = fi->hParent;
             si.level = nLevel;
             si.part = 0;
-            si.item = (LONG)nItem;
-            return;
+            return fi;
         }
 
         if (fpt.y >= fOffset + DEFAULT_ITEM_HEIGHT / 4.0f && fpt.y <= fOffset + DEFAULT_ITEM_HEIGHT * 3 / 4.0f)
@@ -1500,14 +1821,13 @@ void CListFolders::HiTestItem(long nItem, folder_items &items, float& fOffset, D
             si.handle_item = fi->hHandle;
             si.parent_item = fi->hParent;
             si.level = nLevel;
-            si.item = (LONG)nItem;
             si.part = 1;
 
             if (fpt.x > 4 && fpt.x < 12)
                 si.plus = TRUE;
             else
                 si.plus = FALSE;
-            return;
+            return fi;
         }
 
         if (fpt.y >= fOffset + DEFAULT_ITEM_HEIGHT * 3 / 4.0f && fpt.y <= fOffset + DEFAULT_ITEM_HEIGHT)
@@ -1515,23 +1835,35 @@ void CListFolders::HiTestItem(long nItem, folder_items &items, float& fOffset, D
             si.handle_item = fi->hHandle;
             si.parent_item = fi->hParent;
             si.level = nLevel;
-            si.item = (LONG)nItem;
             si.part = 2;
-            return;
+            return fi;
         }
     }
-    fOffset += DEFAULT_ITEM_HEIGHT;
 
+    fOffset += DEFAULT_ITEM_HEIGHT;
 
     if (fi->HasChildren() && !fi->bCollapsed)
     {
         for (size_t t = 0; t < fi->children.size(); t++)
         {
-            HiTestItem((LONG)t, fi->children, fOffset, fpt, si, nLevel + 1);
-            if (si.item >= 0)
-                return;
+            HANDLE hItem = HiTestItem(fi->children.at(t), fOffset, fpt, si, nLevel + 1);
+            if (hItem)
+                return hItem;
         }
     }
+    return NULL;
+}
+
+void CListFolders::SetSelectedItem(CFolderItem* fi)
+{
+    SELECTED_ITEM si = {};
+    si.handle_item = fi->hHandle;
+    si.parent_item = fi->hParent;
+    si.level = fi->GetLevel();
+    si.part = 1;
+    m_selected = si;
+    fi->Select();
+    InvalidateRect(m_hWnd, NULL, TRUE);
 }
 
 void CListFolders::GetSelectedItems(std::vector<size_t>& selected)
@@ -1576,4 +1908,65 @@ HWND CListFolders::CreateTrackingToolTip(int toolID, HWND hWndParent, HINSTANCE 
         return NULL;
 
     return h;
+}
+
+void CListFolders::OnFolderProperties(HWND hWnd)
+{
+    CFolderItem* fi = (CFolderItem*)m_selected.handle_item;
+
+    DLG_LRESULT_INIT dlg_res{};
+    dlg_res.hParent = hWnd;
+    dlg_res.sTitle = fi->sTitle;
+    UINT nColorIndex = fi->nColorIndex;
+    dlg_res.clrBack = fi->clrs.btn; //m_colors_back.at(nColorIndex);
+    dlg_res.clrText = fi->clrs.txt; // m_colors_text.at(nColorIndex);
+
+    GetWindowRect(hWnd, &dlg_res.rect);
+
+    INT_PTR ret = DialogBoxParam(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_DLG_FOLDER_PROPERTIES), hWnd, PropertiesDlgProc, (LPARAM)&dlg_res);
+    if (ret == IDOK)
+    {
+        fi->sTitle = dlg_res.sTitle;
+        if (dlg_res.clrBack != COLOR_DEFAULT || dlg_res.clrText != 0)
+        {
+            //fi->nColorIndex = AddColor(m_pRenderTarget, dlg_res.clrBack, dlg_res.clrText, fi->nColorIndex);
+            fi->SetColors(dlg_res.clrText, dlg_res.clrBack);
+            fi->CreateDPColors(m_pRenderTarget);
+        }
+        InvalidateRect(hWnd, NULL, NULL);
+    }
+}
+
+void CListFolders::OnFolderRemove(HWND hWnd)
+{
+    CFolderItem* fi = (CFolderItem*)m_selected.handle_item;
+    if (!fi)
+        return;
+
+    wchar_t text_buffer[2048] = { 0 }; //temporary buffer
+    std::wstring sTitle = {};
+    fi->GetTitle(sTitle);
+    swprintf(text_buffer, _countof(text_buffer), L"Remove <A>%s</A>\" tab?", sTitle.c_str());
+
+    if (MessageBoxPos(m_hWnd, text_buffer, L"Are You Sure?", MB_YESNO | MB_ICONQUESTION, 0, 0) != IDYES)
+        return;
+
+    //if (MessageBox(m_hWnd, text_buffer, L"Are You Sure?", MB_YESNO | MB_ICONQUESTION) != IDYES)
+    //    return;
+
+    fi->Remove();
+
+    InvalidateRect(m_hWnd, NULL, TRUE);
+}
+
+HANDLE CListFolders::GetSelectedItem()
+{
+    HANDLE hSelectedItem = NULL;
+    for (CFolderItem* pfi : m_root.children)
+    {
+        hSelectedItem = pfi->GetSelectedItem();
+        if (hSelectedItem)
+            return hSelectedItem;
+    }
+    return hSelectedItem;
 }

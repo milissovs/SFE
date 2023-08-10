@@ -385,9 +385,12 @@ void CMainView::RepositionChildren(RECT rect)
     ::ShowWindow(m_wndMDIs[0].m_hWnd, SW_SHOW);
     DeferWindowPos(defStruct, m_wndMDIs[0].m_hWnd, NULL, r0.left, r0.top, r0.right - r0.left, r0.bottom - r0.top, SWP_NOZORDER | SWP_NOCOPYBITS);
 
-    RECT r1 = GetMDIPos(rect, rSplit, 1);
-    ::ShowWindow(m_wndMDIs[1].m_hWnd, SW_SHOW);
-    DeferWindowPos(defStruct, m_wndMDIs[1].m_hWnd, NULL, r1.left, r1.top, r1.right - r1.left, r1.bottom - r1.top, SWP_NOZORDER | SWP_NOCOPYBITS);
+    if (m_wndSplitter.m_split_type != CSplitterWnd::SPLIT_TYPE::SPLIT_NONE)
+    {
+        RECT r1 = GetMDIPos(rect, rSplit, 1);
+        ::ShowWindow(m_wndMDIs[1].m_hWnd, SW_SHOW);
+        DeferWindowPos(defStruct, m_wndMDIs[1].m_hWnd, NULL, r1.left, r1.top, r1.right - r1.left, r1.bottom - r1.top, SWP_NOZORDER | SWP_NOCOPYBITS);
+    }
 
     EndDeferWindowPos(defStruct);
 

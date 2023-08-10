@@ -3,7 +3,7 @@
 #include "listview.h"
 #include "globals.h"
 #include "resource.h"
-#include <Uxtheme.h>
+//#include <Uxtheme.h>
 #include <vsstyle.h>
 
 LRESULT CALLBACK ListProcEx(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
@@ -139,7 +139,7 @@ HWND CListView::Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam)
     {
         SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
         oldListWndProc = (LONG_PTR)SetWindowLongPtr(m_hWnd, GWLP_WNDPROC, (LONG_PTR)ListProcEx);
-        SetWindowTheme(m_hWnd, L"Explorer", NULL);
+        //SetWindowTheme(m_hWnd, L"Explorer", NULL);
     }
 
     return m_hWnd;

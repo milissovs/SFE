@@ -8,6 +8,15 @@
 #include "drag_drop.h"
 #include "folder_item.h"
 
+typedef struct _DLG_LRESULT_INIT_
+{
+	HWND hParent{ NULL };
+	std::wstring sTitle{};
+	COLORREF clrBack{ 0 };
+	COLORREF clrText{ 0 };
+	RECT     rect{ 0, 0 };
+} DLG_LRESULT_INIT;
+
 class CListFolders
 {
 public:
@@ -31,26 +40,34 @@ public:
 	void OnMouseMove(UINT nFlags, POINT point);
 	void OnMouseHover(UINT nFlags, POINT point);
 
-	HANDLE AddFolder(LPCTSTR lpszText, HANDLE lParent = NULL);
-	void InsertFolder(CFolderItem* pfi, size_t at);
-	void RemoveFolder(size_t at);
+	void OnFolderProperties(HWND hWnd);
+	void OnFolderRemove(HWND hWnd);
 
-	void GetSelectedItems(std::vector<size_t>& selected);
+	HANDLE        AddFolder(LPCTSTR lpszText, HANDLE lParent = NULL);
+	void          InsertFolder(CFolderItem* pfi, size_t at);
+	void          RemoveFolder(size_t at);
 
-	long GetVirtualHeight();
-	long GetTopItem();
-	int  GetScrollPos32(int nBar, BOOL bGetTrackPos = FALSE);
-	BOOL SetScrollPos32(int nBar, int nPos, BOOL bRedraw = TRUE);
-	void ResetScrollBar();
-	UINT AddColor(ID2D1HwndRenderTarget* pRT, COLORREF color);
+	void          GetSelectedItems(std::vector<size_t>& selected);
+	void          SetSelectedItem(CFolderItem* fi);
+	HANDLE        GetFirstItem() { if (!m_root.HasChildren()) return NULL; return m_root.children.at(0); };
+	HANDLE        GetSelectedItem();
+
+	long          GetVirtualHeight();
+	HANDLE        GetTopItem();
+	int           GetScrollPos32(int nBar, BOOL bGetTrackPos = FALSE);
+	BOOL          SetScrollPos32(int nBar, int nPos, BOOL bRedraw = TRUE);
+	void          ResetScrollBar();
+	UINT          AddColor(ID2D1HwndRenderTarget* pRT, COLORREF color, COLORREF tcolor = 0, size_t index = 0); // index = 0 - add new; index > 0 - update
 	SELECTED_ITEM HitTest(POINT point);
-	void          HiTestItem(long nItem, folder_items &items, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM &si, WORD nLevel = 0);
+	HANDLE        HiTestItem(CFolderItem* fi, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM &si, WORD nLevel = 0);
 	HGLOBAL       CopyItem(LONG nItem);
 
 	HWND CreateTrackingToolTip(int toolID, HWND hWndParent, HINSTANCE hInst);
 
 	HWND m_hWnd;
 	HWND m_hWndTT;
+	HWND m_hWndProperties;
+	HINSTANCE m_hInstance;
 
 	int  m_nWidth;
 	BOOL m_bLButtonDown;
@@ -62,6 +79,7 @@ public:
 	BOOL  m_bMouseTracking;
 	POINT m_pointLbuttonDown;
 	SELECTED_ITEM m_hovered;
+	SELECTED_ITEM m_selected;
 
 private:
 	ID2D1Factory*             m_pDirect2dFactory;
@@ -80,6 +98,11 @@ private:
 
 	std::vector<ID2D1LinearGradientBrush*> m_colors_normal;
 	std::vector<ID2D1LinearGradientBrush*> m_colors_pressed;
+	std::vector<ID2D1SolidColorBrush*>     m_colors_brtext;
+	std::vector<COLORREF>                  m_colors_back;
+	std::vector<COLORREF>                  m_colors_text;
+
+	DLG_LRESULT_INIT m_dlg_init;
 
 private:
 	// Initialize device-independent resources.
@@ -90,13 +113,13 @@ private:
 
 	HRESULT OnPaint2D();
 	void    DrawItems(ID2D1HwndRenderTarget *pRT, D2D1_RECT_F & rect);
-	void    DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_RECT_F& rc, folder_items items, SIZE_T nItem, D2D1_POINT_2F &ptMark0, D2D1_POINT_2F &ptMark1, UINT nLevel = 0);
-	void    DrawItem_Text(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder, D2D1_RECT_F& rc, UINT nLevel);
+	void    DrawItem(ID2D1HwndRenderTarget* pRT, D2D1_RECT_F& rect, D2D1_RECT_F& rc, CFolderItem* Item, D2D1_POINT_2F &ptMark0, D2D1_POINT_2F &ptMark1);
+	void    DrawItem_Text(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder, D2D1_RECT_F& rc);
 	void    DrawItem_LeftMark(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder);
 	void    DrawItem_RightMark(ID2D1HwndRenderTarget* pRT, CFolderItem* fi, D2D1_RECT_F& rcBorder);
 
 	// Release device-dependent resource.
-	void DiscardDeviceDependentResources();
+	void    DiscardDeviceDependentResources();
 
 private:
 	//folder_items m_items;

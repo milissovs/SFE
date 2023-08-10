@@ -15,6 +15,8 @@ inline void SafeRelease(Interface** ppInterfaceToRelease)
 
 #define TEST_PATH L"\\\\server3\\Public\\PROJECTS DOCUMENTS\\Table reports\\!!! Unicredit 2023\\Individuals W1 2023\\!Reports\\01_IT\\AdNow"
 
+#define TO_SYSTEM_TRAY_ON_CLOSE 0
+
 #define FOLDER_POSITION_LEFT 0
 #define FOLDER_POSITION_RIGHT 1
 
@@ -24,6 +26,16 @@ inline void SafeRelease(Interface** ppInterfaceToRelease)
 #define WM_PANE_FOLDER       WM_USER + 4
 #define WM_UPDATE_SETTINGS   WM_USER + 5
 #define WM_DDD_FOLDERS       WM_USER + 6
+#define WM_PROP_FOLDERS      WM_USER + 7
+#define WM_TRAYMESSAGE       WM_USER + 8
+
+#define WM_PANE_FOLDER_SET_POSITION 0
+#define WM_PANE_FOLDER_GET_POSITION 1
+#define WM_PANE_FOLDER_LIST_FOLDERS 2
+
+#define WM_PANE_FOLDER_LIST_FOLDERS_GET_SELECTED 0
+#define WM_PANE_FOLDER_LIST_FOLDERS_GET_HWND     1
+
 
 #ifndef _DPI_AWARENESS_CONTEXTS_
 #define _DPI_AWARENESS_CONTEXTS_

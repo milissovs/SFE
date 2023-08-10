@@ -6,10 +6,6 @@
 
 TCHAR m_szPaneHeaderClassName[] = TEXT("PANEHEADER");
 
-#define IDM_CONTEXT_LINE   1000
-#define IDM_CONTEXT_RECTAN 1001
-#define IDM_CONTEXT_CIRCLE 1002
-#define IDM_MOVE_PANE      1003 
 
 #define CX_BITMAP 16	// Each icon width  (tileset)
 #define CY_BITMAP 16	// Each icon height (tileset)
@@ -505,11 +501,20 @@ void CPaneHeader::OnLButtonDown(UINT nType, UINT nX, UINT nY)
         if (bMouseOverBtn == 0)
         {
             POINT pt;
+
+            //HANDLE hItem = (HANDLE)SendMessage(GetParent(m_hWnd), WM_PANE_FOLDER, 2, 0);
             HMENU hMenuPopup = CreatePopupMenu();
-            AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_LINE, L"Line");
-            AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_RECTAN, L"Rectangle");
-            AppendMenu(hMenuPopup, MF_STRING, IDM_CONTEXT_CIRCLE, L"Circle");
-            AppendMenu(hMenuPopup, MF_SEPARATOR, 0, NULL);
+            //DWORD dw = MF_STRING;
+            //if (hItem == NULL)
+            //{
+            //    dw |= MF_DISABLED | MF_GRAYED;
+            //}
+            //AppendMenu(hMenuPopup, dw, IDM_FOLDER_PROPERTIES, L"Properties ...");
+            //AppendMenu(hMenuPopup, MF_STRING, IDM_FOLDER_ADD, L"Add");
+            //AppendMenu(hMenuPopup, MF_STRING, IDM_FOLDER_REMOVE, L"Remove!");
+            //AppendMenu(hMenuPopup, MF_SEPARATOR, 0, NULL);
+            //AppendMenu(hMenuPopup, MF_STRING, IDM_FOLDER_CREATE_GROUP, L"Create group ...");
+            //AppendMenu(hMenuPopup, MF_SEPARATOR, 0, NULL);
             if (m_nPanePos == 0)
                 AppendMenu(hMenuPopup, MF_STRING, IDM_MOVE_PANE, L"To the right side ->");
             else
@@ -518,9 +523,18 @@ void CPaneHeader::OnLButtonDown(UINT nType, UINT nX, UINT nY)
             pt.x = nX;
             pt.y = nY;
             ClientToScreen(m_hWnd, &pt);
-            TrackPopupMenu(hMenuPopup,
+            TrackPopupMenu(
+                hMenuPopup,
                 TPM_LEFTALIGN | TPM_RIGHTBUTTON,
-                pt.x, pt.y, 0, m_hWnd, NULL);
+                pt.x, pt.y,
+                0,
+                m_hWnd,
+                //(HWND)SendMessage(
+                //    GetParent(m_hWnd),
+                //    WM_PANE_FOLDER,
+                //    WM_PANE_FOLDER_LIST_FOLDERS,
+                //    WM_PANE_FOLDER_LIST_FOLDERS_GET_HWND),
+                NULL);
             DestroyMenu(hMenuPopup);
         }
 
