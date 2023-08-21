@@ -115,7 +115,7 @@ public:
 	BOOL         bSelected;
 	BOOL         bHiden;
 	BOOL         bLocked;
-	UINT         nColorIndex;
+	//UINT         nColorIndex;
 	HANDLE       nLastChildSelected;
 	folder_items children;
 	BTN_COLORS   clrs;
@@ -146,6 +146,7 @@ public:
 	void       DeleteChildren();
 	void       Remove();
 	HANDLE     GetSelectedItem();
+	BOOL       SetFolderPath(LPCTSTR lpszText);
 };
 
 

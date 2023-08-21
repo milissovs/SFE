@@ -174,9 +174,9 @@ LRESULT  CMainFrame::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPA
         {
             if (TO_SYSTEM_TRAY_ON_CLOSE)
             {
-                
                 ::ShowWindow(hWnd, SW_HIDE);
                 TrayDrawIcon(m_hInstance, hWnd);
+                PostMessageToDescendants(m_hWnd, WM_KILLFOCUS, 0, 0, TRUE);
             }
             else
             {
@@ -491,6 +491,7 @@ void CMainFrame::OnSize(UINT nType, UINT nWidth, UINT nHeight)
         ::ShowWindow(m_hWnd, SW_MINIMIZE);
         ::ShowWindow(m_hWnd, SW_HIDE);
         TrayDrawIcon(m_hInstance, m_hWnd);
+        PostMessageToDescendants(m_hWnd, WM_KILLFOCUS, 0, 0, TRUE);
         return;
     }
 

@@ -178,6 +178,9 @@ LRESULT  CFolderPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
 
                     case WM_PANE_FOLDER_LIST_FOLDERS_GET_HWND:
                         return (LRESULT)m_wndListFolders.m_hWnd;
+
+                    case WM_PANE_FOLDER_LIST_FOLDERS_GET_CRUMB:
+                        return (LRESULT)SendMessage(GetParent(hWnd), WM_MDIFRAME, WP_MDIFRAME_GET_CRUMB_HWND, 0);
                 }
             }
         }
@@ -307,7 +310,7 @@ int CFolderPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
     hW = m_wndListFolders.Create(hWnd, lpCS->hInstance, &m_wndListFolders);
 
     m_wndListFolders.AddFolder(TEST_PATH);
-    HANDLE addr = m_wndListFolders.AddFolder(L"2");
+    HANDLE addr = m_wndListFolders.AddFolder(L"D:\\Milissov\\Work\\2023\\Radisson\\");
     //m_wndListFolders.AddFolder(L"12", addr);
     //m_wndListFolders.AddFolder(L"13", addr);
     //m_wndListFolders.AddFolder(L"14", addr);
@@ -318,31 +321,7 @@ int CFolderPane::OnCreate(HWND hWnd, LPCREATESTRUCT lpCS)
     m_wndListFolders.AddFolder(L"8");
     m_wndListFolders.AddFolder(L"9");
     m_wndListFolders.AddFolder(L"10");
-    //m_wndListFolders.AddFolder(L"11");
-    //m_wndListFolders.AddFolder(L"12");
-    //m_wndListFolders.AddFolder(L"13");
-    //m_wndListFolders.AddFolder(L"14");
-    //m_wndListFolders.AddFolder(L"15");
-    //m_wndListFolders.AddFolder(L"16");
-    //m_wndListFolders.AddFolder(L"17");
-    //m_wndListFolders.AddFolder(L"18");
-    //m_wndListFolders.AddFolder(L"19");
-    //m_wndListFolders.AddFolder(L"20");
-    //m_wndListFolders.AddFolder(L"21");
-    //m_wndListFolders.AddFolder(L"22");
-    //m_wndListFolders.AddFolder(L"23");
-    //m_wndListFolders.AddFolder(L"24");
-    //m_wndListFolders.AddFolder(L"25");
-    //m_wndListFolders.AddFolder(L"26");
-    //m_wndListFolders.AddFolder(L"27");
-    //m_wndListFolders.AddFolder(L"28");
-    //m_wndListFolders.AddFolder(L"29");
-    //m_wndListFolders.AddFolder(L"30");
-    //m_wndListFolders.AddFolder(L"31");
-    //m_wndListFolders.AddFolder(L"32");
-    //m_wndListFolders.AddFolder(L"33");
-    //m_wndListFolders.AddFolder(L"34");
-    //m_wndListFolders.AddFolder(L"35");
+
     addr  = m_wndListFolders.AddFolder(L"50");
 
     m_wndListFolders.AddFolder(L"51", addr);

@@ -175,6 +175,23 @@ LRESULT  CMDIFrame::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPAR
             break;
         }
 
+        case WM_MDIFRAME:
+        {
+            switch (wParam)
+            {
+                case WP_MDIFRAME_GET_CRUMB_HWND:
+                {
+                    return (LRESULT)m_wndTPane.GetGrumbBarHwnd();
+                }
+                case WP_MDIFRAME_SET_FOLDER_PATH:
+                {
+                    m_wndFolderPane.m_wndListFolders.SetFolderPath((LPCTSTR)lParam);
+                    break;
+                }
+            }
+            break;
+        }
+
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
     }

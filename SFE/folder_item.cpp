@@ -17,7 +17,7 @@ CFolderItem::CFolderItem()
 	, bSelected(FALSE)
 	, bHiden(FALSE)
 	, bLocked(FALSE)
-	, nColorIndex(0)
+	//, nColorIndex(0)
 	, nLastChildSelected(NULL)
 	, children()
 	, clrs(RGB(0, 0, 0), COLOR_DEFAULT)
@@ -336,4 +336,16 @@ HANDLE CFolderItem::GetSelectedItem()
 	if (bSelected)
 		return this;
 	return hSelectedItem;
+}
+
+BOOL CFolderItem::SetFolderPath(LPCTSTR lpszText)
+{
+	sPath = lpszText;
+	size_t z = sPath.rfind('\\');
+	if (z == sPath.size() - 1)
+		sPath = sPath.substr(0, z);
+	else
+		return FALSE;
+
+	return TRUE;
 }

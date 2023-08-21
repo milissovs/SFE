@@ -497,6 +497,7 @@ LRESULT  CListFolders::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, L
                 }
                 case IDM_FOLDER_ADD:
                 {
+                    OnFolderAdd(hWnd);
                     break;
                 }
                 case IDM_FOLDER_REMOVE:
@@ -1152,9 +1153,9 @@ HANDLE CListFolders::AddFolder(LPCTSTR lpszText, HANDLE hParent)
     {
         CFolderItem* pfi = (CFolderItem*)hParent;
         fi->hWndParent = m_hWnd;
-        fi->sPath = lpszText;
+        fi->SetFolderPath(lpszText);
         fi->move_index = -1;
-        fi->nColorIndex = 0;
+        //fi->nColorIndex = 0;
         fi->hHandle = fi;
         fi->hParent = hParent;
         fi->nLevel = pfi->nLevel + 1;
@@ -1173,9 +1174,9 @@ HANDLE CListFolders::AddFolder(LPCTSTR lpszText, HANDLE hParent)
     else
     {
         fi->hWndParent = m_hWnd;
-        fi->sPath = lpszText;
+        fi->SetFolderPath(lpszText);
         fi->move_index = -1;
-        fi->nColorIndex = 0;
+        //fi->nColorIndex = 0;
         fi->hHandle = fi;
         fi->hParent = &m_root;
         fi->nLevel = m_root.nLevel + 1;
@@ -1461,6 +1462,15 @@ void CListFolders::OnLButtonDown(UINT nFlags, POINT point)
     }
 
     fi->Select();
+    CFolderItem* sfi = (CFolderItem * )fi->GetSelectedItem();
+    if (sfi)
+    {
+        HWND hCrumb = (HWND)SendMessage(GetParent(m_hWnd), WM_PANE_FOLDER, WM_PANE_FOLDER_LIST_FOLDERS, WM_PANE_FOLDER_LIST_FOLDERS_GET_CRUMB);
+        if (hCrumb)
+        {
+            PostMessage(hCrumb, WM_CRUMBBAR, WP_CRUMBBAR_SET_PATH, (LPARAM)sfi->sPath.c_str());
+        }
+    }
 
     if (b)
         ResetScrollBar();
@@ -1500,6 +1510,8 @@ void CListFolders::OnRButtonDown(UINT nFlags, POINT point)
     {
         OnLButtonDown(nFlags, point);
     }
+    m_bLButtonDown = FALSE;
+    m_bDraging = FALSE;
 
     POINT pt = point;
     HMENU hMenuPopup = CreatePopupMenu();
@@ -1550,7 +1562,7 @@ void CListFolders::OnMouseMove(UINT nFlags, POINT point)
     SELECTED_ITEM siHovered = HitTest(point);
 
     if (m_bLButtonDown//)// && !m_bDraging)// &&
-        && hypot(m_pointLbuttonDown.x - point.x, m_pointLbuttonDown.y - point.y) > 5)
+        && hypot(m_pointLbuttonDown.x - point.x, m_pointLbuttonDown.y - point.y) > 10)
     {
         m_bDraging = TRUE;
         DWORD dw = 0;
@@ -1856,6 +1868,14 @@ HANDLE CListFolders::HiTestItem(CFolderItem* fi, float& fOffset, D2D1_POINT_2F& 
 
 void CListFolders::SetSelectedItem(CFolderItem* fi)
 {
+    if (m_selected.handle_item)
+    {
+        ((CFolderItem*)m_selected.handle_item)->ClearChildrenSelection();
+        ((CFolderItem*)m_selected.handle_item)->bSelected = FALSE;
+    }
+    if (!fi)
+        return;
+
     SELECTED_ITEM si = {};
     si.handle_item = fi->hHandle;
     si.parent_item = fi->hParent;
@@ -1917,7 +1937,7 @@ void CListFolders::OnFolderProperties(HWND hWnd)
     DLG_LRESULT_INIT dlg_res{};
     dlg_res.hParent = hWnd;
     dlg_res.sTitle = fi->sTitle;
-    UINT nColorIndex = fi->nColorIndex;
+    //UINT nColorIndex = fi->nColorIndex;
     dlg_res.clrBack = fi->clrs.btn; //m_colors_back.at(nColorIndex);
     dlg_res.clrText = fi->clrs.txt; // m_colors_text.at(nColorIndex);
 
@@ -1927,7 +1947,7 @@ void CListFolders::OnFolderProperties(HWND hWnd)
     if (ret == IDOK)
     {
         fi->sTitle = dlg_res.sTitle;
-        if (dlg_res.clrBack != COLOR_DEFAULT || dlg_res.clrText != 0)
+        //if (dlg_res.clrBack != COLOR_DEFAULT || dlg_res.clrText != 0)
         {
             //fi->nColorIndex = AddColor(m_pRenderTarget, dlg_res.clrBack, dlg_res.clrText, fi->nColorIndex);
             fi->SetColors(dlg_res.clrText, dlg_res.clrBack);
@@ -1959,6 +1979,75 @@ void CListFolders::OnFolderRemove(HWND hWnd)
     InvalidateRect(m_hWnd, NULL, TRUE);
 }
 
+void CListFolders::OnFolderAdd(HWND hWnd)
+{
+    CFolderItem* pfi = (CFolderItem *)GetSelectedItem();
+
+    CFolderItem* fi = new CFolderItem();
+
+    if (pfi)
+    {
+        fi->hWndParent = pfi->hWndParent;
+        fi->sPath = L"";
+        fi->move_index = -1;
+        //fi->nColorIndex = 0;
+        fi->hHandle = fi;
+        fi->hParent = pfi->hParent;
+        fi->nLevel = pfi->nLevel;
+
+        fi->hPrev = pfi->hHandle;
+        fi->hNext = pfi->hNext;
+        pfi->hNext = fi->hHandle;
+
+        fi->clrs.btn = COLOR_DEFAULT;
+        fi->clrs.txt = RGB(0, 0, 0);
+        fi->CreateDPColors(m_pRenderTarget);
+
+        CFolderItem* root = (CFolderItem * )pfi->hParent;
+        int nIndex = root->FindChildPos(pfi);
+        root->children.insert(root->children.begin() + nIndex, fi);
+
+        pfi->bSelected = FALSE;
+        fi->bSelected = TRUE;
+        SetSelectedItem(fi);
+    }
+    else
+    {
+        fi->hWndParent = m_hWnd;
+        fi->sPath = L"";
+        fi->move_index = -1;
+        fi->hHandle = fi;
+        fi->hParent = &m_root;
+        fi->nLevel = m_root.nLevel + 1;
+        if (m_root.children.end() != m_root.children.begin())
+        {
+            fi->hPrev = m_root.children.back();
+            ((CFolderItem*)m_root.children.back())->hNext = (HANDLE)fi;
+        }
+        else
+        {
+            fi->hPrev = NULL;
+            fi->hNext = NULL;
+        }
+
+        fi->clrs.btn = COLOR_DEFAULT;
+        fi->clrs.txt = RGB(0, 0, 0);
+        fi->CreateDPColors(m_pRenderTarget);
+
+        m_root.children.push_back(fi);
+        fi->bSelected = TRUE;
+        SetSelectedItem(fi);
+    }
+
+    ResetScrollBar();
+    InvalidateRect(hWnd, NULL, NULL);
+    HWND hCrumb =  (HWND)SendMessage(GetParent(hWnd), WM_PANE_FOLDER, WM_PANE_FOLDER_LIST_FOLDERS, WM_PANE_FOLDER_LIST_FOLDERS_GET_CRUMB);
+    if (hCrumb)
+    {
+        PostMessage(hCrumb, WM_CRUMBBAR, WP_CRUMBBAR_SET_MODE, LP_CRUMBBAR_SET_MODE_EDIT);
+    }
+}
+
 HANDLE CListFolders::GetSelectedItem()
 {
     HANDLE hSelectedItem = NULL;
@@ -1969,4 +2058,23 @@ HANDLE CListFolders::GetSelectedItem()
             return hSelectedItem;
     }
     return hSelectedItem;
+}
+
+BOOL CListFolders::SetFolderPath(LPCTSTR lpszText)
+{
+    CFolderItem* pfi = (CFolderItem * )GetSelectedItem();
+    if (pfi == NULL)
+        return FALSE;
+
+    pfi->SetFolderPath(lpszText);
+    InvalidateRect(m_hWnd, NULL, NULL);
+    return TRUE;
+}
+
+BOOL CListFolders::Navigate(CFolderItem* fi)
+{
+    if (!fi)
+        return FALSE;
+
+    return TRUE;
 }

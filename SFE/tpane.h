@@ -24,6 +24,8 @@ public:
 	virtual int      OnCreate(HWND hWnd, LPCREATESTRUCT lpCreateStruct);
 	virtual void     OnSize(UINT nType, UINT nWidth, UINT nHeight);
 
+	HWND GetGrumbBarHwnd() { return m_wndBC.m_hWnd; };
+
 	HWND m_hWnd;
 	HWND m_hWndTT;
 

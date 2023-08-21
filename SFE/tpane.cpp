@@ -256,7 +256,7 @@ void CTPane::OnSize(UINT nType, UINT nWidth, UINT nHeight)
     RECT rc = { 1, 1, (int)(m_wndBtnPane.GetWidth() * m_fScale), (int)(28 * m_fScale) };  //
     MoveWindow(m_wndBtnPane.m_hWnd, rc.left, rc.top, rc.right, rc.bottom - 2, TRUE);
 
-    MoveWindow(m_wndBC.m_hWnd, rc.right + 1, rc.top - 1, nWidth - rc.right - 1, nHeight - 1, TRUE);
+    MoveWindow(m_wndBC.m_hWnd, rc.right + 2, rc.top - 0, nWidth - rc.right - 2, nHeight - 2, TRUE);
 }
 
 HRESULT CTPane::OnPaint(HDC hdc, RECT rect)
@@ -269,51 +269,51 @@ HRESULT CTPane::OnPaint(HDC hdc, RECT rect)
 
     HRESULT hr = S_OK;
 
-    HPEN pen0 = CreatePen(PS_INSIDEFRAME, 1, RGB(227, 227, 227));
-    HPEN pen1 = CreatePen(PS_INSIDEFRAME, 1, RGB(160, 160, 160));
-    HPEN pen2 = CreatePen(PS_INSIDEFRAME, 1, RGB(255, 255, 255));
-    HPEN pen3 = CreatePen(PS_INSIDEFRAME, 1, RGB(105, 105, 105));
+    //HPEN pen0 = CreatePen(PS_INSIDEFRAME, 1, RGB(227, 227, 227));
+    //HPEN pen1 = CreatePen(PS_INSIDEFRAME, 1, RGB(160, 160, 160));
+    //HPEN pen2 = CreatePen(PS_INSIDEFRAME, 1, RGB(255, 255, 255));
+    //HPEN pen3 = CreatePen(PS_INSIDEFRAME, 1, RGB(105, 105, 105));
 
-    //HBRUSH hbr = CreateSolidBrush(0xFF0000);
+    ////HBRUSH hbr = CreateSolidBrush(0xFF0000);
 
-    HGDIOBJ old = SelectObject(hdc, pen2);
+    //HGDIOBJ old = SelectObject(hdc, pen2);
 
-    //FillRect(hdc, &rect, hbr);
-    MoveToEx(hdc, rect.left, rect.top, NULL);
-    LineTo(hdc, rect.right, rect.top);
-    MoveToEx(hdc, rect.left, rect.top, NULL);
-    LineTo(hdc, rect.left, rect.bottom - 1);
+    ////FillRect(hdc, &rect, hbr);
+    //MoveToEx(hdc, rect.left, rect.top, NULL);
+    //LineTo(hdc, rect.right, rect.top);
+    //MoveToEx(hdc, rect.left, rect.top, NULL);
+    //LineTo(hdc, rect.left, rect.bottom - 1);
 
-    SelectObject(hdc, pen1);
-    LineTo(hdc, rect.right - 1, rect.bottom - 1);
-    LineTo(hdc, rect.right - 1, rect.top);
+    //SelectObject(hdc, pen1);
+    //LineTo(hdc, rect.right - 1, rect.bottom - 1);
+    //LineTo(hdc, rect.right - 1, rect.top);
 
-    //
-    int nOffset = (int)(m_wndBtnPane.GetWidth() * m_fScale);
-    MoveToEx(hdc, nOffset + 1, rect.bottom - 1, NULL);
-    LineTo(hdc, nOffset + 1, rect.top);
-    LineTo(hdc, rect.right - 1, rect.top);
+    ////
+    //int nOffset = (int)(m_wndBtnPane.GetWidth() * m_fScale);
+    //MoveToEx(hdc, nOffset + 1, rect.bottom - 1, NULL);
+    //LineTo(hdc, nOffset + 1, rect.top);
+    //LineTo(hdc, rect.right - 1, rect.top);
 
-    SelectObject(hdc, pen3);
-    MoveToEx(hdc, nOffset + 2, rect.bottom - 2, NULL);
-    LineTo(hdc, nOffset + 2, rect.top + 1);
-    LineTo(hdc, rect.right - 2, rect.top + 1);
+    //SelectObject(hdc, pen3);
+    //MoveToEx(hdc, nOffset + 2, rect.bottom - 2, NULL);
+    //LineTo(hdc, nOffset + 2, rect.top + 1);
+    //LineTo(hdc, rect.right - 2, rect.top + 1);
 
-    SelectObject(hdc, pen2);
-    MoveToEx(hdc, nOffset + 1, rect.bottom - 2, NULL);
-    LineTo(hdc, rect.right - 1, rect.bottom - 2);
-    LineTo(hdc, rect.right - 1, rect.top);
+    //SelectObject(hdc, pen2);
+    //MoveToEx(hdc, nOffset + 1, rect.bottom - 2, NULL);
+    //LineTo(hdc, rect.right - 1, rect.bottom - 2);
+    //LineTo(hdc, rect.right - 1, rect.top);
 
-    SelectObject(hdc, pen0);
-    MoveToEx(hdc, nOffset + 2, rect.bottom - 3, NULL);
-    LineTo(hdc, rect.right - 2, rect.bottom - 3);
-    LineTo(hdc, rect.right - 2, rect.top);
+    //SelectObject(hdc, pen0);
+    //MoveToEx(hdc, nOffset + 2, rect.bottom - 3, NULL);
+    //LineTo(hdc, rect.right - 2, rect.bottom - 3);
+    //LineTo(hdc, rect.right - 2, rect.top);
 
-    SelectObject(hdc, old);
-    DeleteObject(pen0);
-    DeleteObject(pen1);
-    DeleteObject(pen2);
-    DeleteObject(pen3);
+    //SelectObject(hdc, old);
+    //DeleteObject(pen0);
+    //DeleteObject(pen1);
+    //DeleteObject(pen2);
+    //DeleteObject(pen3);
 
     //HRESULT hr = CreateDeviceDependentResources();
 

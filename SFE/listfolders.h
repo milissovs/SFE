@@ -42,6 +42,7 @@ public:
 
 	void OnFolderProperties(HWND hWnd);
 	void OnFolderRemove(HWND hWnd);
+	void OnFolderAdd(HWND hWnd);
 
 	HANDLE        AddFolder(LPCTSTR lpszText, HANDLE lParent = NULL);
 	void          InsertFolder(CFolderItem* pfi, size_t at);
@@ -61,6 +62,8 @@ public:
 	SELECTED_ITEM HitTest(POINT point);
 	HANDLE        HiTestItem(CFolderItem* fi, float& fOffset, D2D1_POINT_2F& fpt, SELECTED_ITEM &si, WORD nLevel = 0);
 	HGLOBAL       CopyItem(LONG nItem);
+	BOOL          SetFolderPath(LPCTSTR lpszText);
+	BOOL          Navigate(CFolderItem* fi);
 
 	HWND CreateTrackingToolTip(int toolID, HWND hWndParent, HINSTANCE hInst);
 

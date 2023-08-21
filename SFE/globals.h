@@ -13,6 +13,36 @@ inline void SafeRelease(Interface** ppInterfaceToRelease)
     }
 }
 
+static void PASCAL SendMessageToDescendants(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, BOOL bDeep)
+{
+	for (HWND hWndChild = ::GetTopWindow(hWnd); hWndChild != NULL; hWndChild = ::GetNextWindow(hWndChild, GW_HWNDNEXT))
+	{
+		// send message with Windows SendMessage API
+		::SendMessage(hWndChild, message, wParam, lParam);
+
+		if (bDeep && ::GetTopWindow(hWndChild) != NULL)
+		{
+			// send to child windows after parent
+			SendMessageToDescendants(hWndChild, message, wParam, lParam, bDeep);
+		}
+	}
+}
+
+static void PASCAL PostMessageToDescendants(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, BOOL bDeep)
+{
+	for (HWND hWndChild = ::GetTopWindow(hWnd); hWndChild != NULL; hWndChild = ::GetNextWindow(hWndChild, GW_HWNDNEXT))
+	{
+		// send message with Windows SendMessage API
+		::PostMessage(hWndChild, message, wParam, lParam);
+
+		if (bDeep && ::GetTopWindow(hWndChild) != NULL)
+		{
+			// send to child windows after parent
+			PostMessageToDescendants(hWndChild, message, wParam, lParam, bDeep);
+		}
+	}
+}
+
 #define TEST_PATH L"\\\\server3\\Public\\PROJECTS DOCUMENTS\\Table reports\\!!! Unicredit 2023\\Individuals W1 2023\\!Reports\\01_IT\\AdNow"
 
 #define TO_SYSTEM_TRAY_ON_CLOSE 0
@@ -35,7 +65,18 @@ inline void SafeRelease(Interface** ppInterfaceToRelease)
 
 #define WM_PANE_FOLDER_LIST_FOLDERS_GET_SELECTED 0
 #define WM_PANE_FOLDER_LIST_FOLDERS_GET_HWND     1
+#define WM_PANE_FOLDER_LIST_FOLDERS_GET_CRUMB    2
 
+#define WM_MDIFRAME         WM_USER + 10
+#define WP_MDIFRAME_GET_CRUMB_HWND     0
+#define WP_MDIFRAME_SET_FOLDER_PATH    1
+
+#define WM_CRUMBBAR          WM_USER + 9
+#define WP_CRUMBBAR_SET_MODE           0
+#define WP_CRUMBBAR_SET_PATH           1
+
+#define LP_CRUMBBAR_SET_MODE_CRUMB     0
+#define LP_CRUMBBAR_SET_MODE_EDIT      1
 
 #ifndef _DPI_AWARENESS_CONTEXTS_
 #define _DPI_AWARENESS_CONTEXTS_
