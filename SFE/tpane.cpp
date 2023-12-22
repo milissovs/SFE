@@ -132,6 +132,45 @@ LRESULT  CTPane::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
             break;
         }
 
+        case WM_COMMAND:
+        {
+            WORD nCode = HIWORD(wParam);
+            WORD nID = LOWORD(wParam);
+            HWND hwnd = (HWND)lParam;
+
+            if (hwnd == m_wndBC.m_hWnd) // Message form CBreadCrumb
+            {
+                switch (nCode)
+                {
+                    case EN_CHANGE: // Path has changed
+                    {
+                        std::wstring path = m_wndBC.GetPath();
+                        std::wstring back = m_wndBC.GetBackupPath();
+
+                        if (_wcsnicmp(
+                            path.c_str(),
+                            back.c_str(),
+                            path.size() > back.size() ? path.size() : back.size()))
+                        {
+                            // Change path
+                            m_wndBC.SetPath(path.c_str());
+
+                            // TODO: Change path in folder item too
+                            SendMessage(GetParent(m_hWnd), WM_MDIFRAME, WP_MDIFRAME_SET_FOLDER_PATH, (LPARAM)path.c_str());
+
+                            // TODO: m_path_backup трябва да се изпрати в HISTORY
+                            // ...
+                            
+                            // TODO: Have to navigate
+                            // ...
+                        }
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
     }

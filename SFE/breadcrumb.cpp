@@ -156,8 +156,8 @@ CBreadCrumb::CBreadCrumb()
     , m_hOldFocus(NULL)
     , m_txt_range()
     , m_nCaretPos(0)
-    , hCursorIBeam(NULL)
-    , hCursorArrow(NULL)
+    , m_hCursorIBeam(NULL)
+    , m_hCursorArrow(NULL)
 {
 
 }
@@ -190,8 +190,8 @@ LRESULT  CBreadCrumb::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
 
         case WM_CREATE:
         {
-            hCursorIBeam = LoadCursor(NULL, IDC_IBEAM);
-            hCursorArrow = LoadCursor(NULL, IDC_ARROW);
+            m_hCursorIBeam = LoadCursor(NULL, IDC_IBEAM);
+            m_hCursorArrow = LoadCursor(NULL, IDC_ARROW);
             break;
         }
 
@@ -262,9 +262,9 @@ LRESULT  CBreadCrumb::WindowProcedure(HWND hWnd, UINT message, WPARAM wParam, LP
             GetClientRect(hWnd, &rc);
 
             if (!PtInRect(&rc, pt) || GetMode() != MODE_EDIT)
-                SetCursor(hCursorArrow);
+                SetCursor(m_hCursorArrow);
             else
-                SetCursor(hCursorIBeam);
+                SetCursor(m_hCursorIBeam);
             break;
         }
 
@@ -1029,15 +1029,12 @@ void CBreadCrumb::SetMode(BOOL bMode)
     if (bMode == MODE_CRUMB)
     {
         KillTimer(m_hWnd, ID_TIMER);
-        if (m_path_backup.length() > 0)
-        {
-            // m_path_backup трябва да се изпрати в HISTORY
-            // ...
 
-            HWND hWnd = GetParent(m_hWnd); // CTPane
-            hWnd = GetParent(hWnd);        // CMDIFrame
-            SendMessage(hWnd, WM_MDIFRAME, WP_MDIFRAME_SET_FOLDER_PATH, (LPARAM)m_path.c_str());
-        }
+        PostMessage(
+            GetParent(m_hWnd),          // CTPane
+            WM_COMMAND,
+            MAKEWPARAM(554, EN_CHANGE),
+            (LPARAM)m_hWnd);
     }
 
     if (bMode == MODE_EDIT)
@@ -1098,7 +1095,7 @@ void CBreadCrumb::OnLButtonDown(UINT nFlag, POINT pt)
 
             m_hOldFocus = SetFocus(m_hWnd);
             SetCapture(m_hWnd);
-            SetCursor(hCursorIBeam);
+            SetCursor(m_hCursorIBeam);
         }
 
         if (pt.x <= lenght && GetMode() == MODE_EDIT)
@@ -1186,7 +1183,7 @@ void CBreadCrumb::OnCommand(WPARAM wParam, LPARAM lParam)
             m_txt_range.startPosition = 0;
             m_txt_range.length = lstrlen(m_path.c_str());
             SetMode(MODE_EDIT);
-            SetCursor(hCursorIBeam);
+            SetCursor(m_hCursorIBeam);
 
             m_hOldFocus = SetFocus(m_hWnd);
             SetCapture(m_hWnd);
@@ -1336,7 +1333,6 @@ void CBreadCrumb::OnKeyDown(WPARAM wParam, LPARAM lParam)
         case VK_RETURN:
         {
             SetMode(MODE_CRUMB);
-            SetPath(m_path.c_str());
 
             ReleaseCapture();
             SetFocus(m_hOldFocus);
@@ -1443,7 +1439,7 @@ void CBreadCrumb::OnKeyDown(WPARAM wParam, LPARAM lParam)
         }
     }
 
-    // There is NO selction
+    // There is NO selection
     if (m_txt_range.length == 0)
     {
         switch (wParam)
@@ -1516,7 +1512,7 @@ void CBreadCrumb::OnKeyDown(WPARAM wParam, LPARAM lParam)
         return;
     }
 
-    // There IS selction
+    // There IS selection
     if (m_txt_range.length != 0)
     {
         switch (wParam)

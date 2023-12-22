@@ -2,6 +2,10 @@
 #define GLOBALS_H_INCLUDED
 
 #include <windows.h>
+#include <vector>
+#include <string>
+
+typedef std::vector<std::wstring> str_vector;
 
 template<class Interface>
 inline void SafeRelease(Interface** ppInterfaceToRelease)

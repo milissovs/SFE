@@ -21,7 +21,7 @@ public:
 	void OnLButtonDown(POINT pt);
 	void OnMouseMove(UINT nFlag, POINT pt);
 
-	int GetHoveredPutton();
+	int GetHoveredButton();
 	int GetWidth();
 
 	HWND m_hWnd;

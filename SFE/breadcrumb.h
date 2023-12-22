@@ -8,6 +8,7 @@
 #include "button.h"
 #include <vector>
 #include <string>
+#include "globals.h"
 
 #define DELEMITER L"\\"
 #define CHEVRON_WIDTH 15
@@ -23,14 +24,14 @@ struct SELECT_TEXT_RANGE
 
 typedef struct _BREAD_CRUMB_ITEM_
 {
-	int nID = 0;
+	int   nID = 0;
 	float fWidth = 0;
-	std::wstring text = TEXT("");
-	IDWriteTextLayout* m_pDWriteLayout = NULL;
+	std::wstring        text = TEXT("");
+	IDWriteTextLayout*  m_pDWriteLayout = NULL;
 	DWRITE_TEXT_METRICS tm{};
-	std::vector<std::wstring> txt_special;
+	str_vector          txt_special;
 	BOOL bHasChevron{ TRUE };
-	int nHoveredType = 0;
+	int  nHoveredType = 0;
 	BOOL bInvalidate = FALSE;
 } BREAD_CRUMB_ITEM;
 
@@ -39,10 +40,8 @@ class CBreadCrumb
 public:
 	CBreadCrumb();
 	~CBreadCrumb();
-
 	HWND m_hWnd;
-	HCURSOR hCursorIBeam;
-	HCURSOR hCursorArrow;
+
 
 	virtual LRESULT  WindowProcedure(HWND, UINT, WPARAM, LPARAM);
 	virtual HWND     Create(HWND hWndParent, HINSTANCE hInstance, LPVOID lpParam);
@@ -57,6 +56,8 @@ public:
 	virtual void     OnKeyDown(WPARAM wParam, LPARAM lParam);
 
 	void             SetPath(LPCTSTR lpszPath);
+	std::wstring&    GetPath() { return m_path; };
+	std::wstring&    GetBackupPath() { return m_path_backup; };
 	int              FindNextCrumBarPos(const std::wstring& path, int iStart);
 	void             InitVisibleCrumbs();
 	void             ClearVisbleCrumbs();
@@ -108,18 +109,21 @@ protected:
 	SELECT_TEXT_RANGE      m_txt_range;
 
 private:
-	std::wstring                  m_path;
-	std::wstring                  m_path_backup;
-	std::vector<std::wstring>     m_path_undo;
-	BOOL                          m_bMouseTracking;
-	std::vector<std::wstring>     m_crumbs;
-	std::vector<BREAD_CRUMB_ITEM> m_visible_crumbs;
-	int                           m_nLastHoverdCrumb;
-	BOOL                          m_bMode;
-	BOOL                          m_bLButtonDown;
-	BOOL                          m_bDragging;
-	HWND                          m_hOldFocus;
-	int                           m_nCaretPos;
+	HCURSOR      m_hCursorIBeam;
+	HCURSOR      m_hCursorArrow;
+	std::wstring m_path;
+	std::wstring m_path_backup;
+	str_vector   m_path_undo;
+	BOOL         m_bMouseTracking;
+	str_vector   m_crumbs;
+	std::vector<BREAD_CRUMB_ITEM>
+		         m_visible_crumbs;
+	int          m_nLastHoverdCrumb;
+	BOOL         m_bMode;
+	BOOL         m_bLButtonDown;
+	BOOL         m_bDragging;
+	HWND         m_hOldFocus;
+	int          m_nCaretPos;
 };
 
 #endif // BUTTON_H_INCLUDED

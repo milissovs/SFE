@@ -387,6 +387,7 @@ void CBTNPane::OnSize(UINT nType, UINT nWidth, UINT nHeight)
     RECT rc = { 0, 0, 28, (int)nHeight };
 
     m_btns[0].SetRect(rc);
+    m_btns[0].SetChevron(TRUE);
 
     rc.left += (int)m_btns[0].GetWidth();
     rc.right += (int)m_btns[0].GetWidth();
@@ -397,7 +398,7 @@ void CBTNPane::OnSize(UINT nType, UINT nWidth, UINT nHeight)
     m_btns[2].SetRect(rc);
 }
 
-int CBTNPane::GetHoveredPutton()
+int CBTNPane::GetHoveredButton()
 {
     for (int i = 0; i < 3; i++)
     {
@@ -409,7 +410,14 @@ int CBTNPane::GetHoveredPutton()
 
 void CBTNPane::OnLButtonDown(POINT pt)
 {
+    int nButton = GetHoveredButton();
+    if (nButton < 0 || nButton > 2)
+        return;
 
+    if (m_btns[nButton].GetState() & BS_HOVERED_DROP)
+    {
+        // TODO: Get history form CFolderItem
+    }
 }
 
 void CBTNPane::OnMouseMove(UINT nFlag, POINT pt)
@@ -420,11 +428,23 @@ void CBTNPane::OnMouseMove(UINT nFlag, POINT pt)
 
     for (int i = 0; i < 3; i++)
     {
-        if (m_btns[i].IsMouseOver(point))
+        if (m_btns[i].IsMouseOverDrop(point))
         {
-            BOOL b = m_btns[i].GetState() & BS_HOVERED;
-            if (!b)
+            //BOOL b = m_btns[i].GetState() & BS_HOVERED_DROP;
+            //if (!b)
+            {
                 m_btns[i].SetStateHovered(TRUE);
+                m_btns[i].SetStateHoveredDrop(TRUE);
+            }
+        }
+        else if (m_btns[i].IsMouseOver(point))
+        {
+            //BOOL b = m_btns[i].GetState() & BS_HOVERED;
+            //if (!b)
+            {
+                m_btns[i].SetStateHovered(TRUE);
+                m_btns[i].SetStateHoveredDrop(FALSE);
+            }
         }
         else
         {
@@ -433,7 +453,7 @@ void CBTNPane::OnMouseMove(UINT nFlag, POINT pt)
         }
     }
 
-    int nHovered = GetHoveredPutton();
+    int nHovered = GetHoveredButton();
     if (nHovered >= 0)
     {
         if (m_nHoveredButton != nHovered)
